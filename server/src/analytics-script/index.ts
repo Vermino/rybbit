@@ -32,6 +32,10 @@ declare global {
       startSessionReplay: () => {},
       stopSessionReplay: () => {},
       isSessionReplayActive: () => false,
+      // E-commerce no-ops
+      viewProduct: () => {},
+      addToCart: () => {},
+      purchase: () => {},
     };
     return;
   }
@@ -153,6 +157,10 @@ declare global {
     startSessionReplay: () => tracker.startSessionReplay(),
     stopSessionReplay: () => tracker.stopSessionReplay(),
     isSessionReplayActive: () => tracker.isSessionReplayActive(),
+    // E-commerce tracking
+    viewProduct: (product) => tracker.viewProduct(product),
+    addToCart: (product, quantity) => tracker.addToCart(product, quantity),
+    purchase: (transaction) => tracker.purchase(transaction),
   };
 
   // Initialize
