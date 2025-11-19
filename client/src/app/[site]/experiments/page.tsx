@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSetPageTitle } from "../../../hooks/useSetPageTitle";
 import { useStore } from "../../../lib/store";
 import { FlaskConical, Plus, Play, Pause, Trash2, Edit } from "lucide-react";
@@ -28,6 +28,60 @@ export default function ExperimentsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "draft" | "running" | "paused" | "completed">("all");
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+
+  // Fetch experiments
+  const fetchExperiments = async () => {
+    if (!site) return;
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/experiments?siteId=${site}`);
+      if (response.ok) {
+        const data = await response.json();
+        setExperiments(data.experiments || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch experiments:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load experiments on mount and when site changes
+  useEffect(() => {
+    fetchExperiments();
+  }, [site]);
+
+  // Filter experiments by status
+  const filteredExperiments = experiments.filter((exp: any) => {
+    if (filter === "all") return true;
+    return exp.status === filter;
+  });
+
+  // Handle status change (play/pause)
+  const handleStatusChange = async (experimentId: string, newStatus: "running" | "paused") => {
+    try {
+      const response = await fetch("/api/experiments/status", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          experimentId,
+          status: newStatus,
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh experiments list
+        fetchExperiments();
+      } else {
+        console.error("Failed to update experiment status");
+      }
+    } catch (error) {
+      console.error("Error updating experiment status:", error);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -85,7 +139,7 @@ export default function ExperimentsPage() {
             <ExperimentCardSkeleton />
             <ExperimentCardSkeleton />
           </div>
-        ) : experiments.length === 0 ? (
+        ) : filteredExperiments.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg">
             <FlaskConical className="w-12 h-12 text-neutral-400 mx-auto mb-3" />
             <h3 className="text-lg font-medium text-neutral-900 dark:text-white mb-1">
@@ -101,7 +155,7 @@ export default function ExperimentsPage() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {experiments.map((experiment: any) => (
+            {filteredExperiments.map((experiment: any) => (
               <div
                 key={experiment.id}
                 className="rounded-lg bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 p-4 hover:shadow-md transition-shadow"
@@ -120,14 +174,24 @@ export default function ExperimentsPage() {
                       <Edit className="w-4 h-4" />
                     </Button>
                     {experiment.status === "running" ? (
-                      <Button variant="ghost" size="sm">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleStatusChange(experiment.id, "paused")}
+                        title="Pause experiment"
+                      >
                         <Pause className="w-4 h-4" />
                       </Button>
-                    ) : (
-                      <Button variant="ghost" size="sm">
+                    ) : experiment.status === "draft" || experiment.status === "paused" ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleStatusChange(experiment.id, "running")}
+                        title="Start experiment"
+                      >
                         <Play className="w-4 h-4" />
                       </Button>
-                    )}
+                    ) : null}
                     <Button variant="ghost" size="sm">
                       <Trash2 className="w-4 h-4 text-red-600" />
                     </Button>
@@ -161,10 +225,7 @@ export default function ExperimentsPage() {
       <CreateExperimentWizard
         open={isWizardOpen}
         onOpenChange={setIsWizardOpen}
-        onSuccess={() => {
-          // TODO: Refresh experiments list
-          console.log("Experiment created successfully");
-        }}
+        onSuccess={fetchExperiments}
       />
     </div>
   );
