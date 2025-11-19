@@ -97,3 +97,5 @@ export const SESSION_REPLAY_PAGE_FILTERS: FilterParameter[] = [
   "channel",
   "user_id",
 ];
+
+export const ECOMMERCE_PAGE_FILTERS: FilterParameter[] = [...BASE_FILTERS];

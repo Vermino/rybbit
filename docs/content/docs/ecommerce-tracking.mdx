@@ -1,0 +1,423 @@
+---
+title: E-commerce Tracking
+description: Track e-commerce events and measure revenue with Rybbit's enhanced e-commerce tracking
+---
+
+Rybbit provides comprehensive e-commerce tracking capabilities similar to Google Analytics 4, enabling you to track product views, add-to-cart events, purchases, and more. This allows you to measure revenue, calculate conversion rates, and optimize your online store.
+
+## Overview
+
+The e-commerce tracking API provides standardized methods for tracking:
+
+- Product views
+- Add to cart / Remove from cart
+- Checkout funnel steps
+- Purchase transactions
+- Refunds
+
+All e-commerce data is automatically aggregated and available in the **E-commerce** dashboard in your Rybbit interface.
+
+## Available E-commerce Methods
+
+### `window.rybbit.ecommerce.viewItem(item)`
+
+Track when a user views a product.
+
+**Parameters:**
+- `item` (Object): Product information
+  - `item_id` (String, required): Unique product identifier
+  - `item_name` (String, required): Product name
+  - `price` (Number, required): Product price
+  - `quantity` (Number, required): Quantity being viewed (usually 1)
+  - `item_category` (String, optional): Product category
+  - `item_variant` (String, optional): Product variant (e.g., size, color)
+  - `item_brand` (String, optional): Product brand
+
+```javascript
+// Track product view
+window.rybbit.ecommerce.viewItem({
+  item_id: "SKU-12345",
+  item_name: "Blue Running Shoes",
+  price: 89.99,
+  quantity: 1,
+  item_category: "Footwear",
+  item_variant: "Size 10",
+  item_brand: "Nike"
+});
+```
+
+### `window.rybbit.ecommerce.addToCart(item)`
+
+Track when a user adds a product to their cart.
+
+**Parameters:**
+- `item` (Object): Same as `viewItem` parameters
+
+```javascript
+// Track add to cart
+window.rybbit.ecommerce.addToCart({
+  item_id: "SKU-12345",
+  item_name: "Blue Running Shoes",
+  price: 89.99,
+  quantity: 2,
+  item_category: "Footwear",
+  item_brand: "Nike"
+});
+```
+
+### `window.rybbit.ecommerce.removeFromCart(item)`
+
+Track when a user removes a product from their cart.
+
+**Parameters:**
+- `item` (Object): Same as `viewItem` parameters
+
+```javascript
+// Track remove from cart
+window.rybbit.ecommerce.removeFromCart({
+  item_id: "SKU-12345",
+  item_name: "Blue Running Shoes",
+  price: 89.99,
+  quantity: 1
+});
+```
+
+### `window.rybbit.ecommerce.beginCheckout(items, value, currency)`
+
+Track when a user begins the checkout process.
+
+**Parameters:**
+- `items` (Array): Array of item objects (same format as `viewItem`)
+- `value` (Number): Total cart value
+- `currency` (String, optional): Currency code (default: "USD")
+
+```javascript
+// Track checkout start
+window.rybbit.ecommerce.beginCheckout(
+  [
+    {
+      item_id: "SKU-12345",
+      item_name: "Blue Running Shoes",
+      price: 89.99,
+      quantity: 2
+    },
+    {
+      item_id: "SKU-67890",
+      item_name: "White T-Shirt",
+      price: 19.99,
+      quantity: 1
+    }
+  ],
+  199.97,
+  "USD"
+);
+```
+
+### `window.rybbit.ecommerce.addPaymentInfo(value, currency)`
+
+Track when a user adds payment information.
+
+**Parameters:**
+- `value` (Number): Order value
+- `currency` (String, optional): Currency code (default: "USD")
+
+```javascript
+// Track payment info added
+window.rybbit.ecommerce.addPaymentInfo(199.97, "USD");
+```
+
+### `window.rybbit.ecommerce.addShippingInfo(value, currency)`
+
+Track when a user adds shipping information.
+
+**Parameters:**
+- `value` (Number): Order value
+- `currency` (String, optional): Currency code (default: "USD")
+
+```javascript
+// Track shipping info added
+window.rybbit.ecommerce.addShippingInfo(199.97, "USD");
+```
+
+### `window.rybbit.ecommerce.purchase(purchase)`
+
+Track a completed purchase transaction. **This is the most important e-commerce event.**
+
+**Parameters:**
+- `purchase` (Object): Purchase details
+  - `transaction_id` (String, required): Unique order/transaction ID
+  - `value` (Number, required): Total purchase value (revenue)
+  - `currency` (String, required): Currency code (e.g., "USD", "EUR")
+  - `tax` (Number, optional): Tax amount
+  - `shipping` (Number, optional): Shipping cost
+  - `items` (Array, required): Array of purchased items
+
+```javascript
+// Track purchase
+window.rybbit.ecommerce.purchase({
+  transaction_id: "ORDER-123456",
+  value: 219.96,
+  currency: "USD",
+  tax: 15.99,
+  shipping: 5.00,
+  items: [
+    {
+      item_id: "SKU-12345",
+      item_name: "Blue Running Shoes",
+      price: 89.99,
+      quantity: 2,
+      item_category: "Footwear",
+      item_brand: "Nike"
+    },
+    {
+      item_id: "SKU-67890",
+      item_name: "White T-Shirt",
+      price: 19.99,
+      quantity: 1,
+      item_category: "Apparel"
+    }
+  ]
+});
+```
+
+### `window.rybbit.ecommerce.refund(transaction_id, value, currency)`
+
+Track a refunded transaction.
+
+**Parameters:**
+- `transaction_id` (String, required): Original order/transaction ID
+- `value` (Number, required): Refund amount
+- `currency` (String, optional): Currency code (default: "USD")
+
+```javascript
+// Track refund
+window.rybbit.ecommerce.refund("ORDER-123456", 219.96, "USD");
+```
+
+## Complete E-commerce Implementation Example
+
+Here's a complete example showing how to implement e-commerce tracking throughout your store:
+
+### Product Page
+
+```javascript
+// Track product view when page loads
+window.rybbit.ecommerce.viewItem({
+  item_id: "SKU-12345",
+  item_name: "Blue Running Shoes",
+  price: 89.99,
+  quantity: 1,
+  item_category: "Footwear",
+  item_variant: "Size 10",
+  item_brand: "Nike"
+});
+
+// Track add to cart
+document.getElementById('add-to-cart').addEventListener('click', () => {
+  const quantity = parseInt(document.getElementById('quantity').value);
+
+  window.rybbit.ecommerce.addToCart({
+    item_id: "SKU-12345",
+    item_name: "Blue Running Shoes",
+    price: 89.99,
+    quantity: quantity,
+    item_category: "Footwear",
+    item_brand: "Nike"
+  });
+});
+```
+
+### Shopping Cart Page
+
+```javascript
+// Track remove from cart
+document.querySelectorAll('.remove-item').forEach(button => {
+  button.addEventListener('click', (e) => {
+    const item = e.target.dataset;
+
+    window.rybbit.ecommerce.removeFromCart({
+      item_id: item.id,
+      item_name: item.name,
+      price: parseFloat(item.price),
+      quantity: parseInt(item.quantity)
+    });
+  });
+});
+
+// Track checkout start
+document.getElementById('checkout-button').addEventListener('click', () => {
+  const cartItems = getCartItems(); // Your function to get cart items
+  const cartTotal = calculateTotal(); // Your function to calculate total
+
+  window.rybbit.ecommerce.beginCheckout(cartItems, cartTotal, "USD");
+});
+```
+
+### Checkout Page
+
+```javascript
+// Track payment info step
+document.getElementById('payment-form').addEventListener('submit', (e) => {
+  const total = parseFloat(document.getElementById('order-total').value);
+  window.rybbit.ecommerce.addPaymentInfo(total, "USD");
+});
+
+// Track shipping info step
+document.getElementById('shipping-form').addEventListener('submit', (e) => {
+  const total = parseFloat(document.getElementById('order-total').value);
+  window.rybbit.ecommerce.addShippingInfo(total, "USD");
+});
+```
+
+### Order Confirmation Page
+
+```javascript
+// Track purchase completion - CRITICAL!
+// This should be on your order confirmation/thank you page
+
+window.rybbit.ecommerce.purchase({
+  transaction_id: "ORDER-123456",  // Use your actual order ID
+  value: 219.96,                   // Total revenue
+  currency: "USD",
+  tax: 15.99,
+  shipping: 5.00,
+  items: [
+    {
+      item_id: "SKU-12345",
+      item_name: "Blue Running Shoes",
+      price: 89.99,
+      quantity: 2,
+      item_category: "Footwear",
+      item_brand: "Nike"
+    },
+    {
+      item_id: "SKU-67890",
+      item_name: "White T-Shirt",
+      price: 19.99,
+      quantity: 1,
+      item_category: "Apparel"
+    }
+  ]
+});
+```
+
+## TypeScript Support
+
+Add e-commerce types to your `rybbit.d.ts`:
+
+```typescript
+interface EcommerceItem {
+  item_id: string;
+  item_name: string;
+  price: number;
+  quantity: number;
+  item_category?: string;
+  item_variant?: string;
+  item_brand?: string;
+}
+
+interface EcommercePurchase {
+  transaction_id: string;
+  value: number;
+  currency: string;
+  tax?: number;
+  shipping?: number;
+  items: EcommerceItem[];
+}
+
+interface Rybbit {
+  // ... existing methods ...
+
+  ecommerce: {
+    viewItem: (item: EcommerceItem) => void;
+    addToCart: (item: EcommerceItem) => void;
+    removeFromCart: (item: EcommerceItem) => void;
+    beginCheckout: (items: EcommerceItem[], value: number, currency?: string) => void;
+    addPaymentInfo: (value: number, currency?: string) => void;
+    addShippingInfo: (value: number, currency?: string) => void;
+    purchase: (purchase: EcommercePurchase) => void;
+    refund: (transaction_id: string, value: number, currency?: string) => void;
+  };
+}
+
+declare global {
+  interface Window {
+    rybbit: Rybbit;
+  }
+}
+
+export {};
+```
+
+## E-commerce Dashboard
+
+Once you've implemented e-commerce tracking, navigate to the **E-commerce** section in your Rybbit dashboard to view:
+
+- **Total Revenue**: Sum of all purchase values
+- **Total Transactions**: Number of completed purchases
+- **Average Order Value**: Average revenue per transaction
+- **Conversion Rate**: Percentage of sessions that resulted in a purchase
+- **Cart Abandonment**: Percentage of checkouts that didn't complete
+- **Revenue Over Time**: Daily/weekly/monthly revenue trends
+- **Product Performance**: Revenue, views, and conversion rates per product
+
+## Best Practices
+
+1. **Always track purchases**: The `purchase` event is essential for revenue tracking
+2. **Use unique transaction IDs**: Prevents duplicate revenue counting
+3. **Track the complete funnel**: View → Add to Cart → Checkout → Purchase
+4. **Include product details**: More detailed item data provides better insights
+5. **Test thoroughly**: Verify events appear correctly in your dashboard
+6. **Handle refunds**: Track refunds to maintain accurate revenue metrics
+7. **Use consistent currency codes**: Stick to standard ISO 4217 codes (USD, EUR, GBP)
+
+## Frequently Asked Questions
+
+### Can I track multiple currencies?
+
+Yes! Specify the currency for each transaction. The dashboard will display all currencies, and you can filter by currency if needed.
+
+### What if a user purchases without adding to cart first?
+
+That's fine. The most important event is `purchase`. Other events help understand the customer journey but aren't required.
+
+### How do I prevent duplicate purchase tracking?
+
+Use unique transaction IDs and only place the purchase tracking code on your order confirmation page, not on pages users might refresh multiple times.
+
+### Can I track partial refunds?
+
+Yes, use the `refund` method with the refunded amount. You can call it multiple times for the same transaction ID.
+
+### What's the difference between value and revenue?
+
+In Rybbit, `value` is the parameter name, but it represents revenue (the total amount paid by the customer including tax and shipping).
+
+## Server-Side E-commerce Tracking
+
+For tracking e-commerce events from server-side applications (useful for preventing client-side ad blockers), use the HTTP API:
+
+```javascript
+// Node.js example
+const response = await fetch('https://your-rybbit-domain.com/track', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    type: 'ecommerce',
+    site_id: 'your-site-id',
+    event_name: 'purchase',
+    properties: JSON.stringify({
+      transaction_id: 'ORDER-123456',
+      value: 219.96,
+      currency: 'USD',
+      tax: 15.99,
+      shipping: 5.00,
+      items: [/* ... */]
+    })
+  })
+});
+```
+
+See the [API documentation](/docs/api/sending-events) for more details on server-side tracking.
