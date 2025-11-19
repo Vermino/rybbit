@@ -72,8 +72,9 @@ export function RevenueChart() {
               tooltip: { container: { background: "hsl(var(--card))" } },
             }}
             tooltip={({ point }) => {
-              const label = point.serieId as string;
-              const val = Number(point.data.yFormatted);
+              const label = String((point as any).seriesId ?? (point as any).serieId);
+              const y = (point.data as any).y;
+              const val = typeof y === "number" ? y : Number((point.data as any).yFormatted);
               return (
                 <div className="rounded-md border px-2 py-1 bg-card">
                   <div className="text-xs opacity-70">{String(point.data.xFormatted)}</div>
