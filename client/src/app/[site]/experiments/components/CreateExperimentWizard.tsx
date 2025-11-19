@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useStore } from "@/lib/store";
+import { BACKEND_URL } from "@/lib/const";
 import {
   Dialog,
   DialogContent,
@@ -172,11 +173,12 @@ export function CreateExperimentWizard({
     setIsSubmitting(true);
     try {
       // Call API to create experiment
-      const response = await fetch("/api/experiments", {
+      const response = await fetch(`${BACKEND_URL}/experiments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           siteId: Number(site),
           name: experimentData.name,

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSetPageTitle } from "../../../hooks/useSetPageTitle";
 import { useStore } from "../../../lib/store";
+import { BACKEND_URL } from "../../../lib/const";
 import { FlaskConical, Plus, Play, Pause, Trash2, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +36,9 @@ export default function ExperimentsPage() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/experiments?siteId=${site}`);
+      const response = await fetch(`${BACKEND_URL}/experiments?siteId=${site}`, {
+        credentials: "include",
+      });
       if (response.ok) {
         const data = await response.json();
         setExperiments(data.experiments || []);
@@ -61,11 +64,12 @@ export default function ExperimentsPage() {
   // Handle status change (play/pause)
   const handleStatusChange = async (experimentId: string, newStatus: "running" | "paused") => {
     try {
-      const response = await fetch("/api/experiments/status", {
+      const response = await fetch(`${BACKEND_URL}/experiments/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           experimentId,
           status: newStatus,
