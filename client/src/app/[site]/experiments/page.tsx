@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useSetPageTitle } from "../../../hooks/useSetPageTitle";
 import { useStore } from "../../../lib/store";
-import { SubHeader } from "../components/SubHeader/SubHeader";
 import { FlaskConical, Plus, Play, Pause, Trash2, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,9 +43,7 @@ export default function ExperimentsPage() {
   };
 
   return (
-    <div className="w-full">
-      <SubHeader />
-
+    <div className="w-full min-h-screen bg-neutral-50 dark:bg-neutral-950">
       <div className="p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

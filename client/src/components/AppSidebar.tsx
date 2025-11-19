@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, ShieldUser, User } from "lucide-react";
+import { BarChart, ShieldUser, User, Flask, Plug, Settings as SettingsIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -10,42 +10,81 @@ import { IS_CLOUD } from "../lib/const";
 import { cn } from "../lib/utils";
 import { RybbitLogo } from "./RybbitLogo";
 import { ThemeSwitcher } from "./ThemeSwitcher";
+import { useStore } from "../lib/store";
+import { Favicon } from "./Favicon";
+import { useGetSite } from "../api/admin/sites";
+import { SiteSelector } from "../app/[site]/components/Sidebar/SiteSelector";
 
 function AppSidebarContent() {
   const pathname = usePathname();
   const { isAdmin } = useAdminPermission();
+  const { site: currentSite } = useStore();
+  const { data: site } = useGetSite(currentSite);
   const [isExpanded, setIsExpanded] = useState(false);
   const embed = useEmbedablePage();
 
   if (embed) return null;
 
+  // Determine which section is active
+  const isAnalytics = pathname.includes("/main") || pathname.includes("/globe") ||
+                      pathname.includes("/pages") || pathname.includes("/goals") ||
+                      pathname.includes("/funnels") || pathname.includes("/journeys") ||
+                      pathname.includes("/sessions") || pathname.includes("/users") ||
+                      pathname.includes("/events") || pathname.includes("/errors") ||
+                      pathname.includes("/replay") || pathname.includes("/retention") ||
+                      pathname.includes("/performance");
+  const isExperiments = pathname.includes("/experiments");
+  const isIntegrations = pathname.includes("/integrations");
+  const isSettings = pathname.includes("/settings");
+
   return (
     <div
       className={cn(
-        "flex flex-col items-start justify-between h-dvh p-2 py-3 bg-neutral-50 dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-850 gap-3 transition-all duration-1s00",
-        isExpanded ? "w-44" : "w-[45px]"
+        "flex flex-col items-start justify-between h-dvh p-2 py-3 bg-neutral-50 dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-850 gap-3 transition-all duration-200",
+        isExpanded ? "w-56" : "w-[45px]"
       )}
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
     >
-      <div className="flex flex-col items-start gap-2">
-        <Link href="/" className="mb-3 mt-1 ml-0.5 flex items-center justify-center">
-          <RybbitLogo width={24} height={18} />
-        </Link>
+      <div className="flex flex-col items-start gap-2 w-full">
+        {/* Logo and Site Selector */}
+        <div className="flex items-center gap-2 mb-3 mt-1 w-full">
+          <Link href="/" className="ml-0.5 flex-shrink-0">
+            <RybbitLogo width={24} height={18} />
+          </Link>
+          {isExpanded && site && (
+            <div className="flex-1 min-w-0 -ml-1">
+              <SiteSelector />
+            </div>
+          )}
+        </div>
+
+        {/* Main Navigation */}
         <SidebarLink
-          href="/"
+          href={site ? `/${site}/main` : "/"}
           icon={<BarChart className="w-5 h-5" />}
           label="Analytics"
-          active={pathname === "/" || !isNaN(Number(pathname.split("/")[1]))}
+          active={isAnalytics || (!isExperiments && !isIntegrations && !isSettings)}
           expanded={isExpanded}
         />
-        {/* <SidebarLink
-          href="/uptime/monitors"
-          icon={<SquareActivity className="w-5 h-5" />}
-          label="Uptime"
-          active={pathname.startsWith("/uptime")}
-          expanded={isExpanded}
-        /> */}
+        {site && (
+          <SidebarLink
+            href={`/${site}/experiments`}
+            icon={<Flask className="w-5 h-5" />}
+            label="Experiments"
+            active={isExperiments}
+            expanded={isExpanded}
+          />
+        )}
+        {site && (
+          <SidebarLink
+            href={`/${site}/integrations`}
+            icon={<Plug className="w-5 h-5" />}
+            label="Integrations"
+            active={isIntegrations}
+            expanded={isExpanded}
+          />
+        )}
         {isAdmin && IS_CLOUD && (
           <SidebarLink
             href="/admin"
@@ -56,6 +95,8 @@ function AppSidebarContent() {
           />
         )}
       </div>
+
+      {/* Bottom section */}
       <div className="flex flex-col items-start gap-2 w-full">
         <div className={cn("flex items-center w-full px-0.5", isExpanded ? "justify-start" : "hidden")}>
           <ThemeSwitcher />

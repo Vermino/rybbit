@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useSetPageTitle } from "../../../hooks/useSetPageTitle";
 import { useStore } from "../../../lib/store";
-import { SubHeader } from "../components/SubHeader/SubHeader";
 import { Plug, Search, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +21,7 @@ const IntegrationCardSkeleton = () => (
   </div>
 );
 
-// Sample integrations data (will be replaced with API call)
+// Sample integrations data
 const sampleIntegrations = [
   {
     id: 1,
@@ -77,9 +76,7 @@ export default function IntegrationsPage() {
   });
 
   return (
-    <div className="w-full">
-      <SubHeader />
-
+    <div className="w-full min-h-screen bg-neutral-50 dark:bg-neutral-950">
       <div className="p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -93,7 +90,7 @@ export default function IntegrationsPage() {
 
         {/* Search and filters */}
         <div className="mb-6 space-y-4">
-          <div className="relative">
+          <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400" />
             <Input
               type="text"
