@@ -10,6 +10,7 @@ import {
   MousePointerClick,
   Rewind,
   Settings,
+  ShoppingCart,
   Split,
   Target,
   User,
@@ -115,6 +116,12 @@ function SidebarContent() {
           active={isActiveTab("goals")}
           href={getTabPath("goals")}
           icon={<Target className="w-4 h-4" />}
+        />
+        <SidebarComponents.Item
+          label="E-commerce"
+          active={isActiveTab("ecommerce")}
+          href={getTabPath("ecommerce")}
+          icon={<ShoppingCart className="w-4 h-4" />}
         />
         <SidebarComponents.SectionHeader>Product Analytics</SidebarComponents.SectionHeader>
         <div className="hidden md:block">

@@ -235,4 +235,44 @@ export const initializeClickhouse = async () => {
       `,
     });
   }
+
+  // Create e-commerce events materialized view
+  await clickhouse.exec({
+    query: `
+      CREATE TABLE IF NOT EXISTS ecommerce_events_mv_target (
+        site_id UInt16,
+        timestamp DateTime,
+        session_id String,
+        user_id String,
+        event_type LowCardinality(String),
+        transaction_id String,
+        revenue Float64,
+        currency String,
+        items String
+      )
+      ENGINE = MergeTree()
+      PARTITION BY toYYYYMM(timestamp)
+      ORDER BY (site_id, timestamp, transaction_id)
+    `,
+  });
+
+  await clickhouse.exec({
+    query: `
+      CREATE MATERIALIZED VIEW IF NOT EXISTS ecommerce_events_mv
+      TO ecommerce_events_mv_target
+      AS SELECT
+        site_id,
+        timestamp,
+        session_id,
+        user_id,
+        event_name as event_type,
+        toString(props.transaction_id) as transaction_id,
+        toFloat64OrNull(props.value) as revenue,
+        toString(props.currency) as currency,
+        toString(props.items) as items
+      FROM events
+      WHERE type = 'custom_event'
+        AND event_name IN ('purchase', 'refund', 'add_to_cart', 'begin_checkout')
+    `,
+  });
 };

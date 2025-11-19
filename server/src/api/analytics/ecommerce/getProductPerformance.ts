@@ -4,17 +4,25 @@ import { getFilterStatement, getTimeStatement, processResults } from "../utils.j
 import SqlString from "sqlstring";
 import { FilterParams } from "@rybbit/shared";
 
-interface ProductPerformance {
-  product_id: string;
+interface ProductPerformanceRow {
   product_name: string;
   revenue: number;
   quantity_sold: number;
-  view_count: number;
-  add_to_cart_count: number;
-  purchase_count: number;
-  view_to_purchase_rate: number;
-  cart_to_purchase_rate: number;
   average_price: number;
+  refund_count: number;
+  refund_rate: number;
+  view_count: number;
+  view_to_purchase_rate: number;
+}
+
+interface ProductPerformanceResponse {
+  data: ProductPerformanceRow[];
+  meta: {
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
 }
 
 export async function getProductPerformance(
@@ -32,12 +40,12 @@ export async function getProductPerformance(
   reply: FastifyReply
 ) {
   const { site } = request.params;
-  const { filters, page = "1", page_size = "20", sort = "revenue", order = "desc" } = request.query;
+  const { page = "1", page_size: pageSize = "10", sort = "revenue", order = "desc" } = request.query;
 
   const pageNumber = parseInt(page, 10);
-  const pageSizeNumber = parseInt(page_size, 10);
+  const pageSizeNumber = parseInt(pageSize, 10);
 
-  // Validate pagination params
+  // Validate page and pageSize
   if (isNaN(pageNumber) || pageNumber < 1) {
     return reply.status(400).send({ error: "Invalid page number" });
   }
@@ -48,98 +56,98 @@ export async function getProductPerformance(
 
   try {
     const timeStatement = getTimeStatement(request.query);
-    const filterStatement = filters ? getFilterStatement(filters, Number(site), timeStatement) : "";
+    const filterStatement = request.query.filters
+      ? getFilterStatement(request.query.filters, Number(site), timeStatement)
+      : "";
 
-    // Build comprehensive product performance query
-    const productPerformanceQuery = `
-      WITH product_views AS (
+    // Validate sort column
+    const validSortColumns = ["product_name", "revenue", "quantity_sold", "average_price", "refund_rate"];
+    const sortColumn = validSortColumns.includes(sort) ? sort : "revenue";
+    const sortOrder = order === "asc" ? "ASC" : "DESC";
+
+    // Build the product performance query
+    const productQuery = `
+      WITH product_purchases AS (
         SELECT
-          JSONExtractString(props, 'product_id') AS product_id,
-          JSONExtractString(props, 'product_name') AS product_name,
-          COUNT(*) AS view_count
-        FROM events
+          JSONExtractString(items, 'name') as product_name,
+          SUM(revenue) as revenue,
+          COUNT(*) as quantity_sold,
+          AVG(revenue) as average_price
+        FROM ecommerce_events_mv_target
         WHERE site_id = ${SqlString.escape(Number(site))}
-          AND type = 'ecommerce'
-          AND event_name = 'view_product'
-          ${timeStatement}
-          ${filterStatement}
-        GROUP BY product_id, product_name
+          AND event_type = 'purchase'
+          AND items != ''
+        ${timeStatement}
+        ${filterStatement}
+        GROUP BY product_name
+        HAVING product_name != ''
       ),
-      cart_adds AS (
+      product_refunds AS (
         SELECT
-          JSONExtractString(props, 'product_id') AS product_id,
-          COUNT(*) AS add_to_cart_count
-        FROM events
+          JSONExtractString(items, 'name') as product_name,
+          COUNT(*) as refund_count
+        FROM ecommerce_events_mv_target
         WHERE site_id = ${SqlString.escape(Number(site))}
-          AND type = 'ecommerce'
-          AND event_name = 'add_to_cart'
-          ${timeStatement}
-          ${filterStatement}
-        GROUP BY product_id
+          AND event_type = 'refund'
+          AND items != ''
+        ${timeStatement}
+        ${filterStatement}
+        GROUP BY product_name
+        HAVING product_name != ''
       ),
-      purchases AS (
+      product_views AS (
         SELECT
-          JSONExtractString(arrayJoin(JSONExtractArrayRaw(props, 'items')), 'id') AS product_id,
-          SUM(JSONExtractFloat(arrayJoin(JSONExtractArrayRaw(props, 'items')), 'price') *
-              JSONExtractInt(arrayJoin(JSONExtractArrayRaw(props, 'items')), 'quantity')) AS revenue,
-          SUM(JSONExtractInt(arrayJoin(JSONExtractArrayRaw(props, 'items')), 'quantity')) AS quantity_sold,
-          COUNT(DISTINCT session_id) AS purchase_count,
-          AVG(JSONExtractFloat(arrayJoin(JSONExtractArrayRaw(props, 'items')), 'price')) AS average_price
+          JSONExtractString(props, 'product_name') as product_name,
+          COUNT(*) as view_count
         FROM events
         WHERE site_id = ${SqlString.escape(Number(site))}
-          AND type = 'ecommerce'
-          AND event_name = 'purchase'
-          ${timeStatement}
-          ${filterStatement}
-        GROUP BY product_id
+          AND type = 'custom_event'
+          AND event_name = 'product_view'
+        ${timeStatement}
+        ${filterStatement}
+        GROUP BY product_name
+        HAVING product_name != ''
       )
       SELECT
-        COALESCE(pv.product_id, ca.product_id, p.product_id) AS product_id,
-        COALESCE(pv.product_name, 'Unknown') AS product_name,
-        COALESCE(p.revenue, 0) AS revenue,
-        COALESCE(p.quantity_sold, 0) AS quantity_sold,
-        COALESCE(pv.view_count, 0) AS view_count,
-        COALESCE(ca.add_to_cart_count, 0) AS add_to_cart_count,
-        COALESCE(p.purchase_count, 0) AS purchase_count,
+        p.product_name,
+        p.revenue,
+        p.quantity_sold,
+        p.average_price,
+        COALESCE(r.refund_count, 0) as refund_count,
         CASE
-          WHEN pv.view_count > 0 THEN p.purchase_count / pv.view_count
+          WHEN p.quantity_sold > 0 THEN COALESCE(r.refund_count, 0) / p.quantity_sold
           ELSE 0
-        END AS view_to_purchase_rate,
+        END as refund_rate,
+        COALESCE(v.view_count, 0) as view_count,
         CASE
-          WHEN ca.add_to_cart_count > 0 THEN p.purchase_count / ca.add_to_cart_count
+          WHEN v.view_count > 0 THEN p.quantity_sold / v.view_count
           ELSE 0
-        END AS cart_to_purchase_rate,
-        COALESCE(p.average_price, 0) AS average_price
-      FROM product_views pv
-      FULL OUTER JOIN cart_adds ca ON pv.product_id = ca.product_id
-      FULL OUTER JOIN purchases p ON COALESCE(pv.product_id, ca.product_id) = p.product_id
-      WHERE product_id != ''
-      ORDER BY ${sort} ${order.toUpperCase()}
+        END as view_to_purchase_rate
+      FROM product_purchases p
+      LEFT JOIN product_refunds r ON p.product_name = r.product_name
+      LEFT JOIN product_views v ON p.product_name = v.product_name
+      ORDER BY ${sortColumn} ${sortOrder}
       LIMIT ${pageSizeNumber}
       OFFSET ${(pageNumber - 1) * pageSizeNumber}
     `;
 
-    const productPerformanceResult = await clickhouse.query({
-      query: productPerformanceQuery,
+    const productResult = await clickhouse.query({
+      query: productQuery,
       format: "JSONEachRow",
     });
 
-    const products = await processResults<ProductPerformance>(productPerformanceResult);
+    const products = await processResults<ProductPerformanceRow>(productResult);
 
     // Get total count for pagination
     const countQuery = `
-      WITH all_products AS (
-        SELECT DISTINCT JSONExtractString(props, 'product_id') AS product_id
-        FROM events
-        WHERE site_id = ${SqlString.escape(Number(site))}
-          AND type = 'ecommerce'
-          AND event_name IN ('view_product', 'add_to_cart', 'purchase')
-          ${timeStatement}
-          ${filterStatement}
-          AND JSONExtractString(props, 'product_id') != ''
-      )
-      SELECT COUNT(*) AS total
-      FROM all_products
+      SELECT COUNT(DISTINCT JSONExtractString(items, 'name')) as total
+      FROM ecommerce_events_mv_target
+      WHERE site_id = ${SqlString.escape(Number(site))}
+        AND event_type = 'purchase'
+        AND items != ''
+        AND JSONExtractString(items, 'name') != ''
+      ${timeStatement}
+      ${filterStatement}
     `;
 
     const countResult = await clickhouse.query({
@@ -148,18 +156,20 @@ export async function getProductPerformance(
     });
 
     const countData = await processResults<{ total: number }>(countResult);
-    const total = countData[0]?.total || 0;
-    const totalPages = Math.ceil(total / pageSizeNumber);
+    const totalProducts = countData[0]?.total || 0;
+    const totalPages = Math.ceil(totalProducts / pageSizeNumber);
 
-    return reply.send({
+    const response: ProductPerformanceResponse = {
       data: products,
       meta: {
-        total,
+        total: totalProducts,
         page: pageNumber,
         pageSize: pageSizeNumber,
         totalPages,
       },
-    });
+    };
+
+    return reply.send(response);
   } catch (error) {
     console.error("Error fetching product performance:", error);
     return reply.status(500).send({ error: "Failed to fetch product performance" });

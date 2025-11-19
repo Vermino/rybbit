@@ -5,21 +5,20 @@ import SqlString from "sqlstring";
 import { FilterParams } from "@rybbit/shared";
 
 interface EcommerceOverviewResponse {
-  total_revenue: number;
-  total_transactions: number;
-  average_order_value: number;
-  conversion_rate: number;
-  cart_abandonment_rate: number;
-  revenue_by_product: Array<{
-    product_id: string;
-    product_name: string;
-    revenue: number;
-    quantity: number;
-  }>;
-  revenue_over_time: Array<{
+  totalRevenue: number;
+  totalTransactions: number;
+  averageOrderValue: number;
+  conversionRate: number;
+  cartAbandonmentRate: number;
+  revenueOverTime: Array<{
     date: string;
     revenue: number;
     transactions: number;
+  }>;
+  topProducts: Array<{
+    product_name: string;
+    revenue: number;
+    quantity: number;
   }>;
 }
 
@@ -35,171 +34,156 @@ export async function getEcommerceOverview(
   reply: FastifyReply
 ) {
   const { site } = request.params;
-  const { filters, interval = "day" } = request.query;
+  const { interval = "day" } = request.query;
 
   try {
     const timeStatement = getTimeStatement(request.query);
-    const filterStatement = filters ? getFilterStatement(filters, Number(site), timeStatement) : "";
+    const filterStatement = request.query.filters
+      ? getFilterStatement(request.query.filters, Number(site), timeStatement)
+      : "";
 
-    // Get total sessions for conversion rate calculation
-    const totalSessionsQuery = `
-      SELECT COUNT(DISTINCT session_id) AS total_sessions
+    // Get total revenue and transactions
+    const metricsQuery = `
+      SELECT
+        SUM(revenue) as total_revenue,
+        COUNT(DISTINCT CASE WHEN event_type = 'purchase' THEN transaction_id END) as total_transactions
+      FROM ecommerce_events_mv_target
+      WHERE site_id = ${SqlString.escape(Number(site))}
+      ${timeStatement}
+      ${filterStatement}
+    `;
+
+    const metricsResult = await clickhouse.query({
+      query: metricsQuery,
+      format: "JSONEachRow",
+    });
+
+    const metricsData = await processResults<{
+      total_revenue: number;
+      total_transactions: number;
+    }>(metricsResult);
+
+    const totalRevenue = metricsData[0]?.total_revenue || 0;
+    const totalTransactions = metricsData[0]?.total_transactions || 0;
+    const averageOrderValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+
+    // Get total sessions for conversion rate
+    const sessionsQuery = `
+      SELECT COUNT(DISTINCT session_id) as total_sessions
       FROM events
       WHERE site_id = ${SqlString.escape(Number(site))}
       ${timeStatement}
       ${filterStatement}
     `;
 
-    const totalSessionsResult = await clickhouse.query({
-      query: totalSessionsQuery,
+    const sessionsResult = await clickhouse.query({
+      query: sessionsQuery,
       format: "JSONEachRow",
     });
-    const totalSessionsData = await processResults<{ total_sessions: number }>(totalSessionsResult);
-    const totalSessions = totalSessionsData[0]?.total_sessions || 0;
 
-    // Get total revenue and transactions
-    const revenueQuery = `
-      SELECT
-        SUM(JSONExtractFloat(props, 'value')) AS total_revenue,
-        COUNT(DISTINCT JSONExtractString(props, 'transaction_id')) AS total_transactions,
-        COUNT(DISTINCT session_id) AS converting_sessions
-      FROM events
-      WHERE site_id = ${SqlString.escape(Number(site))}
-        AND type = 'ecommerce'
-        AND event_name = 'purchase'
-        ${timeStatement}
-        ${filterStatement}
-    `;
+    const sessionsData = await processResults<{ total_sessions: number }>(sessionsResult);
+    const totalSessions = sessionsData[0]?.total_sessions || 0;
+    const conversionRate = totalSessions > 0 ? totalTransactions / totalSessions : 0;
 
-    const revenueResult = await clickhouse.query({
-      query: revenueQuery,
-      format: "JSONEachRow",
-    });
-    const revenueData = await processResults<{
-      total_revenue: number;
-      total_transactions: number;
-      converting_sessions: number;
-    }>(revenueResult);
-
-    const totalRevenue = revenueData[0]?.total_revenue || 0;
-    const totalTransactions = revenueData[0]?.total_transactions || 0;
-    const convertingSessions = revenueData[0]?.converting_sessions || 0;
-    const averageOrderValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
-    const conversionRate = totalSessions > 0 ? convertingSessions / totalSessions : 0;
-
-    // Get cart abandonment rate (add_to_cart sessions that didn't purchase)
+    // Get cart abandonment rate
     const cartAbandonmentQuery = `
-      WITH cart_sessions AS (
-        SELECT DISTINCT session_id
-        FROM events
-        WHERE site_id = ${SqlString.escape(Number(site))}
-          AND type = 'ecommerce'
-          AND event_name = 'add_to_cart'
-          ${timeStatement}
-          ${filterStatement}
-      ),
-      purchase_sessions AS (
-        SELECT DISTINCT session_id
-        FROM events
-        WHERE site_id = ${SqlString.escape(Number(site))}
-          AND type = 'ecommerce'
-          AND event_name = 'purchase'
-          ${timeStatement}
-          ${filterStatement}
-      )
       SELECT
-        COUNT(DISTINCT cart_sessions.session_id) AS cart_sessions,
-        COUNT(DISTINCT purchase_sessions.session_id) AS completed_sessions
-      FROM cart_sessions
-      LEFT JOIN purchase_sessions ON cart_sessions.session_id = purchase_sessions.session_id
+        COUNT(DISTINCT CASE WHEN event_type = 'add_to_cart' THEN session_id END) as sessions_with_cart,
+        COUNT(DISTINCT CASE WHEN event_type = 'purchase' THEN session_id END) as sessions_with_purchase
+      FROM ecommerce_events_mv_target
+      WHERE site_id = ${SqlString.escape(Number(site))}
+      ${timeStatement}
+      ${filterStatement}
     `;
 
-    const cartAbandonmentResult = await clickhouse.query({
+    const cartResult = await clickhouse.query({
       query: cartAbandonmentQuery,
       format: "JSONEachRow",
     });
-    const cartAbandonmentData = await processResults<{
-      cart_sessions: number;
-      completed_sessions: number;
-    }>(cartAbandonmentResult);
 
-    const cartSessions = cartAbandonmentData[0]?.cart_sessions || 0;
-    const completedSessions = cartAbandonmentData[0]?.completed_sessions || 0;
-    const cartAbandonmentRate = cartSessions > 0 ? (cartSessions - completedSessions) / cartSessions : 0;
+    const cartData = await processResults<{
+      sessions_with_cart: number;
+      sessions_with_purchase: number;
+    }>(cartResult);
 
-    // Get revenue by product
-    const revenueByProductQuery = `
-      SELECT
-        JSONExtractString(arrayJoin(JSONExtractArrayRaw(props, 'items')), 'id') AS product_id,
-        JSONExtractString(arrayJoin(JSONExtractArrayRaw(props, 'items')), 'name') AS product_name,
-        SUM(JSONExtractFloat(arrayJoin(JSONExtractArrayRaw(props, 'items')), 'price') *
-            JSONExtractInt(arrayJoin(JSONExtractArrayRaw(props, 'items')), 'quantity')) AS revenue,
-        SUM(JSONExtractInt(arrayJoin(JSONExtractArrayRaw(props, 'items')), 'quantity')) AS quantity
-      FROM events
-      WHERE site_id = ${SqlString.escape(Number(site))}
-        AND type = 'ecommerce'
-        AND event_name = 'purchase'
-        ${timeStatement}
-        ${filterStatement}
-      GROUP BY product_id, product_name
-      ORDER BY revenue DESC
-      LIMIT 10
-    `;
-
-    const revenueByProductResult = await clickhouse.query({
-      query: revenueByProductQuery,
-      format: "JSONEachRow",
-    });
-    const revenueByProduct = await processResults<{
-      product_id: string;
-      product_name: string;
-      revenue: number;
-      quantity: number;
-    }>(revenueByProductResult);
+    const sessionsWithCart = cartData[0]?.sessions_with_cart || 0;
+    const sessionsWithPurchase = cartData[0]?.sessions_with_purchase || 0;
+    const cartAbandonmentRate =
+      sessionsWithCart > 0 ? (sessionsWithCart - sessionsWithPurchase) / sessionsWithCart : 0;
 
     // Get revenue over time
-    let dateFormat = "toDate(timestamp)";
-    if (interval === "hour") {
-      dateFormat = "toStartOfHour(timestamp)";
-    } else if (interval === "week") {
-      dateFormat = "toStartOfWeek(timestamp)";
-    } else if (interval === "month") {
-      dateFormat = "toStartOfMonth(timestamp)";
-    }
+    const intervalMap: Record<string, string> = {
+      hour: "toStartOfHour(timestamp)",
+      day: "toStartOfDay(timestamp)",
+      week: "toStartOfWeek(timestamp)",
+      month: "toStartOfMonth(timestamp)",
+    };
+
+    const timeGrouping = intervalMap[interval] || intervalMap.day;
 
     const revenueOverTimeQuery = `
       SELECT
-        ${dateFormat} AS date,
-        SUM(JSONExtractFloat(props, 'value')) AS revenue,
-        COUNT(DISTINCT JSONExtractString(props, 'transaction_id')) AS transactions
-      FROM events
+        ${timeGrouping} as date,
+        SUM(revenue) as revenue,
+        COUNT(DISTINCT CASE WHEN event_type = 'purchase' THEN transaction_id END) as transactions
+      FROM ecommerce_events_mv_target
       WHERE site_id = ${SqlString.escape(Number(site))}
-        AND type = 'ecommerce'
-        AND event_name = 'purchase'
-        ${timeStatement}
-        ${filterStatement}
+        AND event_type = 'purchase'
+      ${timeStatement}
+      ${filterStatement}
       GROUP BY date
-      ORDER BY date
+      ORDER BY date ASC
     `;
 
     const revenueOverTimeResult = await clickhouse.query({
       query: revenueOverTimeQuery,
       format: "JSONEachRow",
     });
+
     const revenueOverTime = await processResults<{
       date: string;
       revenue: number;
       transactions: number;
     }>(revenueOverTimeResult);
 
+    // Get top products
+    // Note: items is stored as JSON string, we need to parse it
+    const topProductsQuery = `
+      SELECT
+        JSONExtractString(items, 'name') as product_name,
+        SUM(revenue) as revenue,
+        COUNT(*) as quantity
+      FROM ecommerce_events_mv_target
+      WHERE site_id = ${SqlString.escape(Number(site))}
+        AND event_type = 'purchase'
+        AND items != ''
+      ${timeStatement}
+      ${filterStatement}
+      GROUP BY product_name
+      HAVING product_name != ''
+      ORDER BY revenue DESC
+      LIMIT 10
+    `;
+
+    const topProductsResult = await clickhouse.query({
+      query: topProductsQuery,
+      format: "JSONEachRow",
+    });
+
+    const topProducts = await processResults<{
+      product_name: string;
+      revenue: number;
+      quantity: number;
+    }>(topProductsResult);
+
     const response: EcommerceOverviewResponse = {
-      total_revenue: totalRevenue,
-      total_transactions: totalTransactions,
-      average_order_value: averageOrderValue,
-      conversion_rate: conversionRate,
-      cart_abandonment_rate: cartAbandonmentRate,
-      revenue_by_product: revenueByProduct,
-      revenue_over_time: revenueOverTime,
+      totalRevenue,
+      totalTransactions,
+      averageOrderValue,
+      conversionRate,
+      cartAbandonmentRate,
+      revenueOverTime,
+      topProducts,
     };
 
     return reply.send(response);
