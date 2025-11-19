@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { db } from "../../db/postgres/postgres.js";
 import { integrations } from "../../db/postgres/schema.js";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 export async function getIntegrations(
   request: FastifyRequest<{
@@ -14,13 +14,11 @@ export async function getIntegrations(
   try {
     const { category } = request.query;
 
-    let query = db.select().from(integrations).where(eq(integrations.status, "active"));
+    const condition = category
+      ? and(eq(integrations.status, "active"), eq(integrations.category, category))
+      : eq(integrations.status, "active");
 
-    if (category) {
-      query = query.where(eq(integrations.category, category));
-    }
-
-    const results = await query;
+    const results = await db.select().from(integrations).where(condition);
 
     return reply.status(200).send({
       integrations: results,
