@@ -9,13 +9,10 @@ import {
   LayoutDashboard,
   MousePointerClick,
   Rewind,
-  Settings,
   Split,
   Target,
   User,
   Video,
-  FlaskConical,
-  Plug,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Suspense } from "react";
