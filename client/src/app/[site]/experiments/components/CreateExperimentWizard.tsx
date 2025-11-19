@@ -193,8 +193,13 @@ export function CreateExperimentWizard({
 
       if (!response.ok) {
         const error = await response.json();
+        console.error("Failed to create experiment:", error);
+        alert(`Failed to create experiment: ${error.message || error.error || "Unknown error"}`);
         throw new Error(error.error || "Failed to create experiment");
       }
+
+      const result = await response.json();
+      console.log("Experiment created successfully:", result);
 
       onSuccess?.();
       onOpenChange(false);

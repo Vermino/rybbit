@@ -109,6 +109,7 @@ export async function createExperiment(
     });
   } catch (error) {
     console.error("Error creating experiment:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
 
     if (error instanceof z.ZodError) {
       return reply.status(400).send({
@@ -117,6 +118,9 @@ export async function createExperiment(
       });
     }
 
-    return reply.status(500).send({ error: "Failed to create experiment" });
+    return reply.status(500).send({
+      error: "Failed to create experiment",
+      message: error instanceof Error ? error.message : String(error)
+    });
   }
 }
