@@ -43,6 +43,8 @@ import { updateGoal } from "./api/analytics/goals/updateGoal.js";
 import { getPerformanceByDimension } from "./api/analytics/performance/getPerformanceByDimension.js";
 import { getPerformanceOverview } from "./api/analytics/performance/getPerformanceOverview.js";
 import { getPerformanceTimeSeries } from "./api/analytics/performance/getPerformanceTimeSeries.js";
+import { getEcommerceOverview } from "./api/analytics/ecommerce/getEcommerceOverview.js";
+import { getProductPerformance } from "./api/analytics/ecommerce/getProductPerformance.js";
 import { getConfig } from "./api/getConfig.js";
 import { getSessionReplayEvents } from "./api/sessionReplay/getSessionReplayEvents.js";
 import { getSessionReplays } from "./api/sessionReplay/getSessionReplays.js";
@@ -349,6 +351,10 @@ server.get("/api/org-event-count/:organizationId", getOrgEventCount);
 server.get("/api/performance/overview/:site", getPerformanceOverview);
 server.get("/api/performance/time-series/:site", getPerformanceTimeSeries);
 server.get("/api/performance/by-dimension/:site", getPerformanceByDimension);
+
+// E-commerce Analytics
+server.get("/api/ecommerce/overview/:site", getEcommerceOverview);
+server.get("/api/ecommerce/products/:site", getProductPerformance);
 
 // Session Replay
 server.post("/api/session-replay/record/:site", recordSessionReplay);
