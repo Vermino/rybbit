@@ -1,4 +1,13 @@
-import { BasePayload, ScriptConfig, TrackingPayload, WebVitalsData, SessionReplayBatch } from "./types.js";
+import {
+  BasePayload,
+  ScriptConfig,
+  TrackingPayload,
+  WebVitalsData,
+  SessionReplayBatch,
+  EcommerceItem,
+  EcommercePurchase,
+  EcommerceEventType,
+} from "./types.js";
 import { findMatchingPattern } from "./utils.js";
 import { SessionReplayRecorder } from "./sessionReplay.js";
 
@@ -258,6 +267,90 @@ export class Tracker {
 
   getUserId(): string | null {
     return this.customUserId;
+  }
+
+  // E-commerce tracking methods
+  ecommerce = {
+    viewItem: (item: EcommerceItem): void => {
+      this.trackEcommerceEvent("view_item", {
+        items: [item],
+        value: item.price * item.quantity,
+        currency: "USD",
+      });
+    },
+
+    addToCart: (item: EcommerceItem): void => {
+      this.trackEcommerceEvent("add_to_cart", {
+        items: [item],
+        value: item.price * item.quantity,
+        currency: "USD",
+      });
+    },
+
+    removeFromCart: (item: EcommerceItem): void => {
+      this.trackEcommerceEvent("remove_from_cart", {
+        items: [item],
+        value: item.price * item.quantity,
+        currency: "USD",
+      });
+    },
+
+    beginCheckout: (items: EcommerceItem[], value: number, currency: string = "USD"): void => {
+      this.trackEcommerceEvent("begin_checkout", {
+        items,
+        value,
+        currency,
+      });
+    },
+
+    addPaymentInfo: (value: number, currency: string = "USD"): void => {
+      this.trackEcommerceEvent("add_payment_info", {
+        value,
+        currency,
+      });
+    },
+
+    addShippingInfo: (value: number, currency: string = "USD"): void => {
+      this.trackEcommerceEvent("add_shipping_info", {
+        value,
+        currency,
+      });
+    },
+
+    purchase: (purchase: EcommercePurchase): void => {
+      this.trackEcommerceEvent("purchase", {
+        transaction_id: purchase.transaction_id,
+        value: purchase.value,
+        currency: purchase.currency,
+        tax: purchase.tax,
+        shipping: purchase.shipping,
+        items: purchase.items,
+      });
+    },
+
+    refund: (transaction_id: string, value: number, currency: string = "USD"): void => {
+      this.trackEcommerceEvent("refund", {
+        transaction_id,
+        value,
+        currency,
+      });
+    },
+  };
+
+  private trackEcommerceEvent(eventType: EcommerceEventType, properties: Record<string, any>): void {
+    const basePayload = this.createBasePayload();
+    if (!basePayload) {
+      return; // Skip tracking
+    }
+
+    const payload: TrackingPayload = {
+      ...basePayload,
+      type: "ecommerce",
+      event_name: eventType,
+      properties: JSON.stringify(properties),
+    };
+
+    this.sendTrackingData(payload);
   }
 
   // Session Replay methods

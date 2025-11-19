@@ -235,4 +235,47 @@ export const initializeClickhouse = async () => {
       `,
     });
   }
+
+  // Create e-commerce events materialized view for optimized analytics queries
+  await clickhouse.exec({
+    query: `
+      CREATE TABLE IF NOT EXISTS ecommerce_events_mv_target (
+        site_id UInt16,
+        timestamp DateTime,
+        session_id String,
+        user_id String,
+        event_type LowCardinality(String),  -- view_item, add_to_cart, purchase, etc.
+        transaction_id String,
+        value Float64,
+        currency LowCardinality(String),
+        tax Nullable(Float64),
+        shipping Nullable(Float64),
+        item_count UInt16                   -- Number of items in the transaction
+      )
+      ENGINE = MergeTree()
+      PARTITION BY toYYYYMM(timestamp)
+      ORDER BY (site_id, timestamp, event_type)
+    `,
+  });
+
+  await clickhouse.exec({
+    query: `
+      CREATE MATERIALIZED VIEW IF NOT EXISTS ecommerce_events_mv
+      TO ecommerce_events_mv_target
+      AS SELECT
+        site_id,
+        timestamp,
+        session_id,
+        user_id,
+        event_name AS event_type,
+        JSONExtractString(props, 'transaction_id') AS transaction_id,
+        toFloat64OrDefault(JSONExtractString(props, 'value'), 0) AS value,
+        JSONExtractString(props, 'currency') AS currency,
+        toFloat64OrNull(JSONExtractString(props, 'tax')) AS tax,
+        toFloat64OrNull(JSONExtractString(props, 'shipping')) AS shipping,
+        length(JSONExtract(props, 'items', 'Array(String)')) AS item_count
+      FROM events
+      WHERE type = 'ecommerce'
+    `,
+  });
 };

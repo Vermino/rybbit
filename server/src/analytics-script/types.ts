@@ -30,7 +30,7 @@ export interface BasePayload {
 }
 
 export interface TrackingPayload extends BasePayload {
-  type: "pageview" | "custom_event" | "outbound" | "performance" | "error";
+  type: "pageview" | "custom_event" | "outbound" | "performance" | "error" | "ecommerce";
   event_name?: string;
   properties?: string;
   // Web vitals metrics
@@ -39,6 +39,36 @@ export interface TrackingPayload extends BasePayload {
   inp?: number | null;
   fcp?: number | null;
   ttfb?: number | null;
+}
+
+// E-commerce types
+export type EcommerceEventType =
+  | "view_item"
+  | "add_to_cart"
+  | "remove_from_cart"
+  | "begin_checkout"
+  | "add_payment_info"
+  | "add_shipping_info"
+  | "purchase"
+  | "refund";
+
+export interface EcommerceItem {
+  item_id: string;
+  item_name: string;
+  price: number;
+  quantity: number;
+  item_category?: string;
+  item_variant?: string;
+  item_brand?: string;
+}
+
+export interface EcommercePurchase {
+  transaction_id: string;
+  value: number;
+  currency: string;
+  tax?: number;
+  shipping?: number;
+  items: EcommerceItem[];
 }
 
 export interface WebVitalsData {
@@ -67,6 +97,16 @@ export interface RybbitAPI {
   startSessionReplay: () => void;
   stopSessionReplay: () => void;
   isSessionReplayActive: () => boolean;
+  ecommerce: {
+    viewItem: (item: EcommerceItem) => void;
+    addToCart: (item: EcommerceItem) => void;
+    removeFromCart: (item: EcommerceItem) => void;
+    beginCheckout: (items: EcommerceItem[], value: number, currency?: string) => void;
+    addPaymentInfo: (value: number, currency?: string) => void;
+    addShippingInfo: (value: number, currency?: string) => void;
+    purchase: (purchase: EcommercePurchase) => void;
+    refund: (transaction_id: string, value: number, currency?: string) => void;
+  };
 }
 
 export interface SessionReplayEvent {
