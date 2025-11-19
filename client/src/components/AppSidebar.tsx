@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, ShieldUser, User, Flask, Plug, Settings as SettingsIcon } from "lucide-react";
+import { BarChart, ShieldUser, User, FlaskConical, Plug, Settings as SettingsIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -70,7 +70,7 @@ function AppSidebarContent() {
         {site && (
           <SidebarLink
             href={`/${site}/experiments`}
-            icon={<Flask className="w-5 h-5" />}
+            icon={<FlaskConical className="w-5 h-5" />}
             label="Experiments"
             active={isExperiments}
             expanded={isExpanded}
