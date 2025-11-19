@@ -87,9 +87,8 @@ export default function IntegrationsPage() {
         const installedResponse = await fetch(`/api/integrations/site?siteId=${site}`);
         if (installedResponse.ok) {
           const installedData = await installedResponse.json();
-          const installedIds = new Set(
-            installedData.integrations?.map((i: any) => i.integrationId) || []
-          );
+          const ids: number[] = (installedData.integrations?.map((i: any) => Number(i.integrationId)) || []) as number[];
+          const installedIds = new Set<number>(ids);
           setInstalledIntegrations(installedIds);
         }
       } catch (error) {
