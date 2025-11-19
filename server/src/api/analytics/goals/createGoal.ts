@@ -42,6 +42,12 @@ const goalSchema = z
       eventPropertyKey: z.string().optional(),
       eventPropertyValue: z.union([z.string(), z.number(), z.boolean()]).optional(),
     }),
+    trackValue: z.boolean().optional(),
+    valueSource: z.enum(["fixed", "property"]).optional(),
+    fixedValue: z.number().optional(),
+    valuePropertyKey: z.string().optional(),
+    currency: z.string().optional(),
+    conversionWindow: z.number().int().positive().optional(),
   })
   .refine(
     data => {
@@ -56,6 +62,24 @@ const goalSchema = z
       message: "Configuration must match goal type",
       path: ["config"],
     }
+  )
+  .refine(
+    data => {
+      // Validate value tracking configuration
+      if (data.trackValue) {
+        if (data.valueSource === "fixed" && !data.fixedValue) {
+          return false;
+        }
+        if (data.valueSource === "property" && !data.valuePropertyKey) {
+          return false;
+        }
+      }
+      return true;
+    },
+    {
+      message: "Value tracking configuration must be complete",
+      path: ["trackValue"],
+    }
   );
 
 type CreateGoalRequest = z.infer<typeof goalSchema>;
@@ -69,7 +93,18 @@ export async function createGoal(
   try {
     // Validate the request body
     const validatedData = goalSchema.parse(request.body);
-    const { siteId, name, goalType, config } = validatedData;
+    const {
+      siteId,
+      name,
+      goalType,
+      config,
+      trackValue = false,
+      valueSource,
+      fixedValue,
+      valuePropertyKey,
+      currency = "USD",
+      conversionWindow = 30
+    } = validatedData;
 
     // Check user access to site
     const userHasAccessToSite = await getUserHasAccessToSite(request, siteId.toString());
@@ -98,6 +133,12 @@ export async function createGoal(
         name: name || null, // Use null if name is not provided
         goalType,
         config,
+        trackValue,
+        valueSource: valueSource || null,
+        fixedValue: fixedValue || null,
+        valuePropertyKey: valuePropertyKey || null,
+        currency,
+        conversionWindow,
       })
       .returning({ goalId: goals.goalId });
 

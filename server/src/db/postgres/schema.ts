@@ -78,6 +78,11 @@ export const sites = pgTable("sites", {
   trackIp: boolean().default(false),
   apiKey: text("api_key"), // Format: rb_{32_hex_chars} = 35 chars total
   privateLinkKey: text("private_link_key"),
+  // Advanced tracking settings
+  scrollTracking: boolean("scroll_tracking").default(false),
+  formTracking: boolean("form_tracking").default(false),
+  visibilityTracking: boolean("visibility_tracking").default(false),
+  timerEvents: jsonb("timer_events").$type<Array<{ seconds: number; eventName: string }>>(), // Array of {seconds, eventName}
 });
 
 // Active sessions table
@@ -224,6 +229,13 @@ export const goals = pgTable(
       eventPropertyKey?: string; // Optional property key to match
       eventPropertyValue?: string | number | boolean; // Optional property value to match (exact match)
     }>(),
+    // Conversion value tracking
+    trackValue: boolean("track_value").default(false),
+    valueSource: text("value_source"), // 'fixed' | 'property' | 'dynamic'
+    fixedValue: real("fixed_value"), // For fixed value per conversion
+    valuePropertyKey: text("value_property_key"), // Event property containing value (e.g., 'amount')
+    currency: text("currency").default("USD"),
+    conversionWindow: integer("conversion_window").default(30), // Days
     createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
   },
   table => [
