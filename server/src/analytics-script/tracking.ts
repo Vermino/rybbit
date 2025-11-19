@@ -398,7 +398,7 @@ export class Tracker {
   // E-commerce Tracking Methods
 
   viewProduct(product: ProductData): void {
-    this.track('ecommerce', 'view_product', {
+    this.track('ecommerce', 'view_item', {
       product_id: product.id,
       product_name: product.name,
       product_price: product.price,
