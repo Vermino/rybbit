@@ -11,7 +11,9 @@ const variantSchema = z.object({
   description: z.string().optional(),
   trafficWeight: z.number().min(0).max(100),
   isControl: z.boolean(),
-  changes: z.any().optional(),
+  redirectUrl: z.string().optional(), // For URL redirect tests
+  customCode: z.string().optional(), // For visual tests (HTML/CSS/JS)
+  changes: z.any().optional(), // Legacy field
 });
 
 // Experiment schema
@@ -21,6 +23,8 @@ const experimentSchema = z.object({
   description: z.string().optional(),
   hypothesis: z.string().optional(),
   type: z.enum(["feature_flag", "url", "visual"]).default("feature_flag"),
+  cloakedUrl: z.string().optional(), // For URL redirect tests
+  targetUrl: z.string().optional(), // For visual tests
   targetingRules: z
     .object({
       urlPatterns: z.array(z.string()).optional(),

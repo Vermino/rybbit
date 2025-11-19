@@ -539,6 +539,10 @@ export const experiments = pgTable("experiments", {
   status: text("status").notNull().default("draft"), // 'draft', 'running', 'paused', 'completed'
   type: text("type").notNull().default("feature_flag"), // 'feature_flag', 'url', 'visual'
 
+  // URL configuration
+  cloakedUrl: text("cloaked_url"), // For URL redirect tests - the URL visitors access
+  targetUrl: text("target_url"), // For visual tests - the page to modify
+
   // Targeting & allocation
   targetingRules: jsonb("targeting_rules")
     .notNull()
@@ -566,7 +570,9 @@ export const experiments = pgTable("experiments", {
         description?: string;
         trafficWeight: number; // % allocation within experiment
         isControl: boolean;
-        changes?: any; // For visual editor changes
+        redirectUrl?: string; // For URL redirect tests
+        customCode?: string; // For visual tests (HTML/CSS/JS)
+        changes?: any; // Legacy field for visual editor changes
       }>
     >(),
 
