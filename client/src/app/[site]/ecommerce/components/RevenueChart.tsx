@@ -2,18 +2,33 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { useGetEcommerceOverview } from "../../../../api/analytics/ecommerce/useGetEcommerceOverview";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { ResponsiveLine } from "@nivo/line";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "../../../../lib/utils";
 
 export function RevenueChart() {
   const { data: overviewData, isLoading } = useGetEcommerceOverview();
 
-  const chartData = overviewData?.revenueOverTime.map(item => ({
-    date: new Date(item.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    revenue: item.revenue,
-    transactions: item.transactions,
-  }));
+  const lineData = (() => {
+    const points = overviewData?.revenueOverTime?.map(d => ({
+      x: new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      revenue: d.revenue,
+      transactions: d.transactions,
+    })) || [];
+
+    return [
+      {
+        id: "Revenue",
+        color: "hsl(var(--primary))",
+        data: points.map(p => ({ x: p.x, y: p.revenue })),
+      },
+      {
+        id: "Transactions",
+        color: "hsl(var(--muted-foreground))",
+        data: points.map(p => ({ x: p.x, y: p.transactions })),
+      },
+    ];
+  })();
 
   if (isLoading) {
     return (
@@ -34,52 +49,40 @@ export function RevenueChart() {
         <CardTitle>Revenue Over Time</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-neutral-200 dark:stroke-neutral-800" />
-            <XAxis
-              dataKey="date"
-              className="text-xs"
-              tick={{ fill: "currentColor" }}
-              stroke="currentColor"
-            />
-            <YAxis
-              className="text-xs"
-              tick={{ fill: "currentColor" }}
-              stroke="currentColor"
-              tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
-              }}
-              formatter={(value: number, name: string) => {
-                if (name === "revenue") return [formatCurrency(value), "Revenue"];
-                return [value, "Transactions"];
-              }}
-            />
-            <Legend />
-            <Line
-              type="monotone"
-              dataKey="revenue"
-              stroke="hsl(var(--primary))"
-              strokeWidth={2}
-              dot={false}
-              name="Revenue"
-            />
-            <Line
-              type="monotone"
-              dataKey="transactions"
-              stroke="hsl(var(--muted-foreground))"
-              strokeWidth={2}
-              dot={false}
-              name="Transactions"
-              yAxisId={1}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        <div style={{ height: 300 }}>
+          <ResponsiveLine
+            data={lineData}
+            margin={{ top: 10, right: 20, bottom: 40, left: 60 }}
+            xScale={{ type: "point" }}
+            yScale={{ type: "linear", stacked: false, min: "auto", max: "auto" }}
+            axisBottom={{ tickRotation: 0 }}
+            axisLeft={{
+              format: v => `$${Math.round((Number(v) || 0) / 1000)}k`,
+            }}
+            curve="monotoneX"
+            enablePoints={false}
+            useMesh
+            colors={d => (typeof d.color === "string" ? d.color : "#10b981")}
+            theme={{
+              textColor: "currentColor",
+              grid: { line: { stroke: "hsl(var(--border))", strokeWidth: 1 } },
+              tooltip: { container: { background: "hsl(var(--card))", color: "currentColor" } },
+            }}
+            tooltip={({ point }) => {
+              const label = point.serieId as string;
+              const val = Number(point.data.yFormatted);
+              return (
+                <div className="rounded-md border px-2 py-1 bg-card">
+                  <div className="text-xs opacity-70">{String(point.data.xFormatted)}</div>
+                  <div className="text-sm font-medium">
+                    {label === "Revenue" ? formatCurrency(val) : val} {label}
+                  </div>
+                </div>
+              );
+            }}
+            legends={[]}
+          />
+        </div>
       </CardContent>
     </Card>
   );
