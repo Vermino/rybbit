@@ -14,6 +14,7 @@ import { useStore } from "../lib/store";
 import { Favicon } from "./Favicon";
 import { useGetSite } from "../api/admin/sites";
 import { SiteSelector } from "../app/[site]/components/Sidebar/SiteSelector";
+import { SiteSettings } from "./SiteSettings/SiteSettings";
 
 function AppSidebarContent() {
   const pathname = usePathname();
@@ -92,6 +93,26 @@ function AppSidebarContent() {
             label="Admin"
             active={pathname.startsWith("/admin")}
             expanded={isExpanded}
+          />
+        )}
+        {site && (
+          <SiteSettings
+            siteId={Number(currentSite)}
+            trigger={
+              <div
+                className={cn(
+                  "p-1 rounded-md transition-all duration-200 flex items-center gap-2 cursor-pointer",
+                  "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-150 dark:hover:bg-neutral-800/80"
+                )}
+              >
+                <div className="flex items-center justify-center w-5 h-5 flex-shrink-0">
+                  <SettingsIcon className="w-5 h-5" />
+                </div>
+                {isExpanded && (
+                  <span className="text-sm font-medium whitespace-nowrap overflow-hidden w-[120px]">Settings</span>
+                )}
+              </div>
+            }
           />
         )}
       </div>
