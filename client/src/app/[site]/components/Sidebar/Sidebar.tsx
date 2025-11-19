@@ -14,6 +14,8 @@ import {
   Target,
   User,
   Video,
+  Flask,
+  Plug,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Suspense } from "react";
@@ -174,6 +176,25 @@ function SidebarContent() {
           href={getTabPath("reports")}
           icon={<ChartBarDecreasing className="w-4 h-4" />}
           /> */}
+
+        {/* TOP-LEVEL: EXPERIMENTS */}
+        <SidebarComponents.SectionHeader>Experiments</SidebarComponents.SectionHeader>
+        <SidebarComponents.Item
+          label="A/B Tests"
+          active={isActiveTab("experiments")}
+          href={getTabPath("experiments")}
+          icon={<Flask className="w-4 h-4" />}
+        />
+
+        {/* TOP-LEVEL: INTEGRATIONS */}
+        <SidebarComponents.SectionHeader>Integrations</SidebarComponents.SectionHeader>
+        <SidebarComponents.Item
+          label="Marketplace"
+          active={isActiveTab("integrations")}
+          href={getTabPath("integrations")}
+          icon={<Plug className="w-4 h-4" />}
+        />
+
         {session.data && !embed && (
           <>
             <SidebarComponents.SectionHeader>Settings</SidebarComponents.SectionHeader>
