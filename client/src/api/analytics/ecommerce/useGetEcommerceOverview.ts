@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getFilteredFilters, useStore } from "../../../lib/store";
-import { MAIN_PAGE_FILTERS } from "../../../lib/filterGroups";
+import { ECOMMERCE_PAGE_FILTERS } from "../../../lib/filterGroups";
 import { authedFetch, getQueryParams } from "../../utils";
 
 export interface EcommerceOverview {
@@ -29,7 +29,7 @@ export function useGetEcommerceOverview({
   enabled?: boolean;
 } = {}) {
   const { site, time } = useStore();
-  const filteredFilters = getFilteredFilters(MAIN_PAGE_FILTERS);
+  const filteredFilters = getFilteredFilters(ECOMMERCE_PAGE_FILTERS);
 
   const timeParams = getQueryParams(time);
 
