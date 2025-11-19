@@ -2,8 +2,15 @@ import dotenv from "dotenv";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+// Get directory name in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from root .env file
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 // Create postgres connection
 const client = postgres({

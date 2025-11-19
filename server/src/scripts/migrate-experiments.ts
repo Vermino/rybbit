@@ -1,8 +1,14 @@
 import dotenv from "dotenv";
 import postgres from "postgres";
+import path from "path";
+import { fileURLToPath } from "url";
 
-// Load environment variables
-dotenv.config();
+// Get directory name in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from root .env file
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 /**
  * Migration script to add cloakedUrl and targetUrl columns to experiments table
