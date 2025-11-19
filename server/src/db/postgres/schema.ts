@@ -527,7 +527,7 @@ export const gscConnections = pgTable("gsc_connections", {
 
 // Experiments table - stores experiment configurations
 export const experiments = pgTable("experiments", {
-  id: text("id")
+  id: text("experiment_id")
     .primaryKey()
     .$defaultFn(() => `exp_${sql`encode(gen_random_bytes(12), 'hex')`.toString()}`),
   siteId: integer("site_id")
