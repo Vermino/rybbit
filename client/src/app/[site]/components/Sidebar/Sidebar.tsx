@@ -14,7 +14,7 @@ import {
   Target,
   User,
   Video,
-  Flask,
+  FlaskConical,
   Plug,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -183,7 +183,7 @@ function SidebarContent() {
           label="A/B Tests"
           active={isActiveTab("experiments")}
           href={getTabPath("experiments")}
-          icon={<Flask className="w-4 h-4" />}
+          icon={<FlaskConical className="w-4 h-4" />}
         />
 
         {/* TOP-LEVEL: INTEGRATIONS */}

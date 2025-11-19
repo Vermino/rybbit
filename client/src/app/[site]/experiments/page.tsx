@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSetPageTitle } from "../../../hooks/useSetPageTitle";
 import { useStore } from "../../../lib/store";
 import { SubHeader } from "../components/SubHeader/SubHeader";
-import { Flask, Plus, Play, Pause, Trash2, Edit } from "lucide-react";
+import { FlaskConical, Plus, Play, Pause, Trash2, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -51,7 +51,7 @@ export default function ExperimentsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Flask className="w-6 h-6 text-neutral-700 dark:text-neutral-300" />
+            <FlaskConical className="w-6 h-6 text-neutral-700 dark:text-neutral-300" />
             <h1 className="text-2xl font-semibold text-neutral-900 dark:text-white">
               A/B Tests & Experiments
             </h1>
@@ -88,7 +88,7 @@ export default function ExperimentsPage() {
           </div>
         ) : experiments.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg">
-            <Flask className="w-12 h-12 text-neutral-400 mx-auto mb-3" />
+            <FlaskConical className="w-12 h-12 text-neutral-400 mx-auto mb-3" />
             <h3 className="text-lg font-medium text-neutral-900 dark:text-white mb-1">
               No experiments yet
             </h3>
