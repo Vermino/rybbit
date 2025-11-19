@@ -235,4 +235,49 @@ export const initializeClickhouse = async () => {
       `,
     });
   }
+
+  // Create experiment assignments table (A/B Testing)
+  await clickhouse.exec({
+    query: `
+      CREATE TABLE IF NOT EXISTS experiment_assignments (
+        site_id UInt16,
+        experiment_id String,
+        visitor_id String,
+        session_id String,
+        variant_id String,
+        variant_name String,
+        timestamp DateTime,
+        user_properties String, -- JSON string with user properties at assignment time
+        device_type LowCardinality(String),
+        country LowCardinality(FixedString(2)),
+        browser LowCardinality(String),
+        operating_system LowCardinality(String)
+      )
+      ENGINE = MergeTree()
+      PARTITION BY toYYYYMM(timestamp)
+      ORDER BY (site_id, experiment_id, timestamp)
+    `,
+  });
+
+  // Create experiment conversions table
+  await clickhouse.exec({
+    query: `
+      CREATE TABLE IF NOT EXISTS experiment_conversions (
+        site_id UInt16,
+        experiment_id String,
+        variant_id String,
+        variant_name String,
+        visitor_id String,
+        session_id String,
+        goal_id UInt32,
+        goal_name String,
+        conversion_value Nullable(Float64), -- For revenue tracking
+        timestamp DateTime,
+        properties String -- JSON string with additional properties
+      )
+      ENGINE = MergeTree()
+      PARTITION BY toYYYYMM(timestamp)
+      ORDER BY (site_id, experiment_id, timestamp)
+    `,
+  });
 };

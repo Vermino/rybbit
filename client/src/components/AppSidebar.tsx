@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, ShieldUser, User } from "lucide-react";
+import { BarChart, ShieldUser, User, Flask, Plug } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -10,14 +10,20 @@ import { IS_CLOUD } from "../lib/const";
 import { cn } from "../lib/utils";
 import { RybbitLogo } from "./RybbitLogo";
 import { ThemeSwitcher } from "./ThemeSwitcher";
+import { useStore } from "../lib/store";
 
 function AppSidebarContent() {
   const pathname = usePathname();
   const { isAdmin } = useAdminPermission();
+  const { site } = useStore();
   const [isExpanded, setIsExpanded] = useState(false);
   const embed = useEmbedablePage();
 
   if (embed) return null;
+
+  // Extract site ID from pathname for dynamic routes
+  const siteIdFromPath = pathname.split("/")[1];
+  const isOnSitePage = !isNaN(Number(siteIdFromPath));
 
   return (
     <div
@@ -36,9 +42,29 @@ function AppSidebarContent() {
           href="/"
           icon={<BarChart className="w-5 h-5" />}
           label="Analytics"
-          active={pathname === "/" || !isNaN(Number(pathname.split("/")[1]))}
+          active={pathname === "/" || (isOnSitePage && !pathname.includes("/experiments") && !pathname.includes("/integrations"))}
           expanded={isExpanded}
         />
+        {/* Experiments - Top-level section */}
+        {site && (
+          <SidebarLink
+            href={`/${site}/experiments`}
+            icon={<Flask className="w-5 h-5" />}
+            label="Experiments"
+            active={pathname.includes("/experiments")}
+            expanded={isExpanded}
+          />
+        )}
+        {/* Integrations - Top-level section */}
+        {site && (
+          <SidebarLink
+            href={`/${site}/integrations`}
+            icon={<Plug className="w-5 h-5" />}
+            label="Integrations"
+            active={pathname.includes("/integrations")}
+            expanded={isExpanded}
+          />
+        )}
         {/* <SidebarLink
           href="/uptime/monitors"
           icon={<SquareActivity className="w-5 h-5" />}

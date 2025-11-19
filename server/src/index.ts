@@ -90,6 +90,14 @@ import { getGSCStatus } from "./api/gsc/status.js";
 import { disconnectGSC } from "./api/gsc/disconnect.js";
 import { getGSCData } from "./api/gsc/getData.js";
 import { selectGSCProperty } from "./api/gsc/selectProperty.js";
+import { createExperiment } from "./api/experiments/createExperiment.js";
+import { getExperiments } from "./api/experiments/getExperiments.js";
+import { updateExperiment } from "./api/experiments/updateExperiment.js";
+import { deleteExperiment } from "./api/experiments/deleteExperiment.js";
+import { getIntegrations } from "./api/integrations/getIntegrations.js";
+import { getSiteIntegrations } from "./api/integrations/getSiteIntegrations.js";
+import { installIntegration } from "./api/integrations/installIntegration.js";
+import { uninstallIntegration } from "./api/integrations/uninstallIntegration.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -383,6 +391,18 @@ server.get("/api/gsc/status/:site", getGSCStatus);
 server.delete("/api/gsc/disconnect/:site", disconnectGSC);
 server.post("/api/gsc/select-property/:site", selectGSCProperty);
 server.get("/api/gsc/data/:site", getGSCData);
+
+// A/B TESTING & EXPERIMENTS
+server.post("/api/experiments", createExperiment);
+server.get("/api/experiments", getExperiments);
+server.put("/api/experiments/:experimentId", updateExperiment);
+server.delete("/api/experiments/:experimentId", deleteExperiment);
+
+// INTEGRATIONS
+server.get("/api/integrations", getIntegrations);
+server.get("/api/integrations/site", getSiteIntegrations);
+server.post("/api/integrations/install", installIntegration);
+server.delete("/api/integrations/:integrationId", uninstallIntegration);
 
 // UPTIME MONITORING
 // Only register uptime routes when IS_CLOUD is true (Redis is available)
