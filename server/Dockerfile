@@ -39,8 +39,18 @@ COPY --from=builder /app/server/public ./public
 COPY --from=builder /app/server/src ./src
 COPY --from=builder /app/shared ./shared
 
-# Make the entrypoint executable
-RUN chmod +x /docker-entrypoint.sh
+# Overwrite entrypoint with a sanitized script to avoid CRLF/BOM issues
+RUN printf '%s\n' \
+    '#!/bin/sh' \
+    'set -e' \
+    '' \
+    'echo "Running database migrations..."' \
+    'npm run db:push -- --force' \
+    '' \
+    'echo "Starting application..."' \
+    'exec "$@"' \
+    > /docker-entrypoint.sh \
+    && chmod +x /docker-entrypoint.sh
 
 # Expose the API port
 EXPOSE 3001
