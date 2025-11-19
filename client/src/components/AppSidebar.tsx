@@ -62,24 +62,24 @@ function AppSidebarContent() {
 
         {/* Main Navigation */}
         <SidebarLink
-          href={site ? `/${site}/main` : "/"}
+          href={currentSite ? `/${currentSite}/main` : "/"}
           icon={<BarChart className="w-5 h-5" />}
           label="Analytics"
           active={isAnalytics || (!isExperiments && !isIntegrations && !isSettings)}
           expanded={isExpanded}
         />
-        {site && (
+        {currentSite && (
           <SidebarLink
-            href={`/${site}/experiments`}
+            href={`/${currentSite}/experiments`}
             icon={<FlaskConical className="w-5 h-5" />}
             label="Experiments"
             active={isExperiments}
             expanded={isExpanded}
           />
         )}
-        {site && (
+        {currentSite && (
           <SidebarLink
-            href={`/${site}/integrations`}
+            href={`/${currentSite}/integrations`}
             icon={<Plug className="w-5 h-5" />}
             label="Integrations"
             active={isIntegrations}
