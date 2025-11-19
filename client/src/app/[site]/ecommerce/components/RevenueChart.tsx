@@ -64,9 +64,12 @@ export function RevenueChart() {
             useMesh
             colors={d => (typeof d.color === "string" ? d.color : "#10b981")}
             theme={{
-              textColor: "currentColor",
+              axis: {
+                ticks: { text: { fill: "currentColor" } },
+                legend: { text: { fill: "currentColor" } },
+              },
               grid: { line: { stroke: "hsl(var(--border))", strokeWidth: 1 } },
-              tooltip: { container: { background: "hsl(var(--card))", color: "currentColor" } },
+              tooltip: { container: { background: "hsl(var(--card))" } },
             }}
             tooltip={({ point }) => {
               const label = point.serieId as string;
