@@ -6,6 +6,7 @@ import { useStore } from "../../../lib/store";
 import { FlaskConical, Plus, Play, Pause, Trash2, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CreateExperimentWizard } from "./components/CreateExperimentWizard";
 
 // Skeleton component
 const ExperimentCardSkeleton = () => (
@@ -26,6 +27,7 @@ export default function ExperimentsPage() {
   const [experiments, setExperiments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "draft" | "running" | "paused" | "completed">("all");
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -53,7 +55,7 @@ export default function ExperimentsPage() {
               A/B Tests & Experiments
             </h1>
           </div>
-          <Button className="flex items-center gap-2">
+          <Button className="flex items-center gap-2" onClick={() => setIsWizardOpen(true)}>
             <Plus className="w-4 h-4" />
             Create Experiment
           </Button>
@@ -92,7 +94,7 @@ export default function ExperimentsPage() {
             <p className="text-neutral-600 dark:text-neutral-400 mb-4">
               Create your first A/B test to start optimizing conversions
             </p>
-            <Button className="flex items-center gap-2 mx-auto">
+            <Button className="flex items-center gap-2 mx-auto" onClick={() => setIsWizardOpen(true)}>
               <Plus className="w-4 h-4" />
               Create Your First Experiment
             </Button>
@@ -154,6 +156,16 @@ export default function ExperimentsPage() {
           </div>
         )}
       </div>
+
+      {/* Create Experiment Wizard */}
+      <CreateExperimentWizard
+        open={isWizardOpen}
+        onOpenChange={setIsWizardOpen}
+        onSuccess={() => {
+          // TODO: Refresh experiments list
+          console.log("Experiment created successfully");
+        }}
+      />
     </div>
   );
 }
