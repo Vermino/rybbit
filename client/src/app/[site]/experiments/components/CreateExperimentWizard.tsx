@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Plus, Trash2, ArrowLeft, ArrowRight, Check, Paintbrush, Lock, Unlock } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, ArrowRight, Check, Wand2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { TargetingBuilder } from "./TargetingBuilder";
 import { VisualEditor } from "./VisualEditor";
@@ -33,7 +33,6 @@ interface Variant {
   description: string;
   trafficWeight: number;
   isControl: boolean;
-  isLocked?: boolean; // Lock weight from auto-adjustment
   redirectUrl?: string; // For URL redirect tests
   customCode?: string; // For visual tests (HTML/CSS/JS)
 }
@@ -71,8 +70,8 @@ export function CreateExperimentWizard({
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [visualEditorOpen, setVisualEditorOpen] = useState(false);
+  const [visualEditorMinimized, setVisualEditorMinimized] = useState(false);
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
-  const [isMinimized, setIsMinimized] = useState(false);
 
   const [experimentData, setExperimentData] = useState<ExperimentData>({
     name: "",
@@ -166,84 +165,9 @@ export function CreateExperimentWizard({
     });
   };
 
-  const handleVariantWeightChange = (id: string, newWeight: number) => {
-    const currentVariant = experimentData.variants.find((v) => v.id === id);
-    if (!currentVariant) return;
-
-    // Clamp newWeight between 0 and 100
-    newWeight = Math.max(0, Math.min(100, newWeight));
-
-    const oldWeight = currentVariant.trafficWeight;
-    const difference = oldWeight - newWeight;
-
-    // Get unlocked variants (excluding current one)
-    const unlockedVariants = experimentData.variants.filter((v) => v.id !== id && !v.isLocked);
-
-    if (unlockedVariants.length === 0) {
-      // No other unlocked variants, just update this one
-      const updatedVariants = experimentData.variants.map((v) =>
-        v.id === id ? { ...v, trafficWeight: newWeight } : v
-      );
-      setExperimentData({
-        ...experimentData,
-        variants: updatedVariants,
-      });
-      return;
-    }
-
-    // Calculate total weight of unlocked variants
-    const unlockedTotal = unlockedVariants.reduce((sum, v) => sum + v.trafficWeight, 0);
-
-    // First pass: distribute proportionally (using floor to avoid going over 100)
-    let distributed = 0;
-    const tempVariants = experimentData.variants.map((v) => {
-      if (v.id === id) {
-        return { ...v, trafficWeight: newWeight };
-      }
-      if (v.isLocked) {
-        return v;
-      }
-
-      // Calculate proportional share
-      const proportion = unlockedTotal > 0 ? v.trafficWeight / unlockedTotal : 1 / unlockedVariants.length;
-      const adjustment = Math.floor(difference * proportion);
-      const newVariantWeight = Math.max(0, v.trafficWeight + adjustment);
-      distributed += newVariantWeight;
-
-      return { ...v, trafficWeight: newVariantWeight };
-    });
-
-    // Second pass: fix rounding errors to ensure total is exactly 100
-    const lockedTotal = tempVariants.filter(v => v.isLocked).reduce((sum, v) => sum + v.trafficWeight, 0);
-    const currentTotal = tempVariants.reduce((sum, v) => sum + v.trafficWeight, 0);
-    const adjustmentNeeded = 100 - currentTotal;
-
-    if (adjustmentNeeded !== 0) {
-      // Apply adjustment to the first unlocked, non-current variant
-      let adjusted = false;
-      const finalVariants = tempVariants.map((v) => {
-        if (!adjusted && !v.isLocked && v.id !== id && v.trafficWeight + adjustmentNeeded >= 0) {
-          adjusted = true;
-          return { ...v, trafficWeight: v.trafficWeight + adjustmentNeeded };
-        }
-        return v;
-      });
-
-      setExperimentData({
-        ...experimentData,
-        variants: finalVariants,
-      });
-    } else {
-      setExperimentData({
-        ...experimentData,
-        variants: tempVariants,
-      });
-    }
-  };
-
-  const toggleVariantLock = (id: string) => {
+  const handleVariantWeightChange = (id: string, weight: number) => {
     const updatedVariants = experimentData.variants.map((v) =>
-      v.id === id ? { ...v, isLocked: !v.isLocked } : v
+      v.id === id ? { ...v, trafficWeight: weight } : v
     );
     setExperimentData({
       ...experimentData,
@@ -251,20 +175,30 @@ export function CreateExperimentWizard({
     });
   };
 
-  const distributeWeightsEvenly = () => {
-    const variantCount = experimentData.variants.length;
-    const equalWeight = Math.floor(100 / variantCount);
-    const remainder = 100 - equalWeight * variantCount;
+  const handleOpenVisualEditor = (variantId: string) => {
+    setEditingVariantId(variantId);
+    setVisualEditorOpen(true);
+    setVisualEditorMinimized(false);
+  };
 
-    const updatedVariants = experimentData.variants.map((v, idx) => ({
-      ...v,
-      trafficWeight: idx === 0 ? equalWeight + remainder : equalWeight,
-    }));
+  const handleSaveVisualEditorCode = (code: string) => {
+    if (!editingVariantId) return;
 
+    const updatedVariants = experimentData.variants.map((v) =>
+      v.id === editingVariantId ? { ...v, customCode: code } : v
+    );
     setExperimentData({
       ...experimentData,
       variants: updatedVariants,
     });
+    setVisualEditorOpen(false);
+    setEditingVariantId(null);
+  };
+
+  const handleCloseVisualEditor = () => {
+    setVisualEditorOpen(false);
+    setVisualEditorMinimized(false);
+    setEditingVariantId(null);
   };
 
   const handleSubmit = async () => {
@@ -473,39 +407,6 @@ export function CreateExperimentWizard({
               </Button>
             </div>
 
-            {experimentData.type === "visual" && experimentData.targetUrl && (
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <Paintbrush className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
-                      Visual Editor Available
-                    </p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                      Use the <strong>"Visual Editor"</strong> button below to modify your page without writing code.
-                      Click elements, change text, colors, and layout - we'll generate the code for you!
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {experimentData.type === "visual" && !experimentData.targetUrl && (
-              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <Paintbrush className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-yellow-900 dark:text-yellow-200">
-                      Visual Editor Unavailable
-                    </p>
-                    <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                      Go back to Step 1 and add a <strong>Target Page URL</strong> to enable the Visual Editor.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             <div className="space-y-3">
               {experimentData.variants.map((variant, idx) => (
                 <div
@@ -579,14 +480,9 @@ export function CreateExperimentWizard({
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="h-7 text-xs"
-                                onClick={() => {
-                                  setEditingVariantId(variant.id);
-                                  setVisualEditorOpen(true);
-                                  setIsMinimized(true);
-                                }}
+                                onClick={() => handleOpenVisualEditor(variant.id)}
                               >
-                                <Paintbrush className="w-3 h-3 mr-1" />
+                                <Wand2 className="w-3 h-3 mr-1" />
                                 Visual Editor
                               </Button>
                             )}
@@ -608,7 +504,7 @@ export function CreateExperimentWizard({
                             className="font-mono text-xs"
                           />
                           <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                            JavaScript code that will run on the target page. Use Visual Editor for a no-code experience.
+                            JavaScript code that will run on the target page
                           </p>
                         </div>
                       )}
@@ -627,23 +523,7 @@ export function CreateExperimentWizard({
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <Label className="text-xs">Traffic Weight</Label>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{variant.trafficWeight}%</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleVariantLock(variant.id)}
-                          className="h-6 w-6 p-0"
-                          title={variant.isLocked ? "Unlock weight" : "Lock weight"}
-                        >
-                          {variant.isLocked ? (
-                            <Lock className="w-3 h-3 text-blue-600" />
-                          ) : (
-                            <Unlock className="w-3 h-3 text-neutral-400" />
-                          )}
-                        </Button>
-                      </div>
+                      <span className="text-sm font-medium">{variant.trafficWeight}%</span>
                     </div>
                     <Slider
                       value={[variant.trafficWeight]}
@@ -653,13 +533,7 @@ export function CreateExperimentWizard({
                       max={100}
                       step={1}
                       className="w-full"
-                      disabled={variant.isLocked}
                     />
-                    {variant.isLocked && (
-                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                        🔒 Weight locked - other variants will adjust
-                      </p>
-                    )}
                   </div>
                 </div>
               ))}
@@ -673,28 +547,12 @@ export function CreateExperimentWizard({
               }`}
             >
               <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <span>Total Traffic Allocation:</span>
-                  <span className="font-medium">{totalWeight.toFixed(0)}%</span>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={distributeWeightsEvenly}
-                  className="text-xs h-7"
-                >
-                  Distribute Evenly
-                </Button>
+                <span>Total Traffic Allocation:</span>
+                <span className="font-medium">{totalWeight.toFixed(0)}%</span>
               </div>
               {!isValidWeight && (
                 <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                  Traffic weights must sum to 100%. Adjust sliders or click "Distribute Evenly".
-                </p>
-              )}
-              {isValidWeight && (
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  ✓ Traffic is properly distributed across all variants
+                  Traffic weights must sum to 100%
                 </p>
               )}
             </div>
@@ -928,8 +786,7 @@ export function CreateExperimentWizard({
   };
 
   return (
-    <>
-    <Dialog open={open && !isMinimized} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Experiment</DialogTitle>
@@ -980,45 +837,20 @@ export function CreateExperimentWizard({
           </div>
         </div>
       </DialogContent>
+
+      {/* Visual Editor */}
+      {visualEditorOpen && experimentData.targetUrl && editingVariantId && (
+        <VisualEditor
+          targetUrl={experimentData.targetUrl}
+          initialCode={
+            experimentData.variants.find((v) => v.id === editingVariantId)?.customCode || ""
+          }
+          onSave={handleSaveVisualEditorCode}
+          onClose={handleCloseVisualEditor}
+          isMinimized={visualEditorMinimized}
+          onToggleMinimize={() => setVisualEditorMinimized(!visualEditorMinimized)}
+        />
+      )}
     </Dialog>
-
-    {/* Visual Editor Modal */}
-    {visualEditorOpen && experimentData.targetUrl && editingVariantId && (
-      <VisualEditor
-        targetUrl={experimentData.targetUrl}
-        initialCode={
-          experimentData.variants.find((v) => v.id === editingVariantId)?.customCode || ""
-        }
-        onSave={(code) => {
-          const updated = experimentData.variants.map((v) =>
-            v.id === editingVariantId ? { ...v, customCode: code } : v
-          );
-          setExperimentData({ ...experimentData, variants: updated });
-          setVisualEditorOpen(false);
-          setEditingVariantId(null);
-          setIsMinimized(false);
-        }}
-        onClose={() => {
-          setVisualEditorOpen(false);
-          setEditingVariantId(null);
-          setIsMinimized(false);
-        }}
-      />
-    )}
-
-    {/* Minimized Wizard Indicator */}
-    {isMinimized && open && (
-      <div className="fixed bottom-4 right-4 z-[90]">
-        <Button
-          onClick={() => setIsMinimized(false)}
-          className="shadow-lg"
-          size="lg"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Resume Experiment Setup
-        </Button>
-      </div>
-    )}
-  </>
   );
 }

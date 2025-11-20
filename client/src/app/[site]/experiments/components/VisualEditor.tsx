@@ -18,103 +18,136 @@ import {
   Type,
   Palette,
   X,
-  Save,
-  Undo,
-  Redo,
-  Monitor,
-  Smartphone,
-  Tablet,
   Layout,
-  Box,
+  Save,
+  Minimize2,
 } from "lucide-react";
+
+interface ElementData {
+  selector: string;
+  tagName: string;
+  textContent: string;
+  innerHTML: string;
+  computedStyles: CSSStyleDeclaration | null;
+  // Parsed style values
+  display: string;
+  width: string;
+  height: string;
+  maxWidth: string;
+  marginTop: string;
+  marginRight: string;
+  marginBottom: string;
+  marginLeft: string;
+  paddingTop: string;
+  paddingRight: string;
+  paddingBottom: string;
+  paddingLeft: string;
+  fontFamily: string;
+  fontSize: string;
+  fontWeight: string;
+  lineHeight: string;
+  letterSpacing: string;
+  textTransform: string;
+  textAlign: string;
+  textDecoration: string;
+  color: string;
+  backgroundColor: string;
+  borderWidth: string;
+  borderStyle: string;
+  borderColor: string;
+  borderRadius: string;
+  boxShadow: string;
+  opacity: string;
+  flexDirection: string;
+  justifyContent: string;
+  alignItems: string;
+  flexWrap: string;
+  gap: string;
+}
 
 interface VisualEditorProps {
   targetUrl: string;
   initialCode?: string;
   onSave: (code: string) => void;
   onClose: () => void;
+  isMinimized: boolean;
+  onToggleMinimize: () => void;
 }
 
-interface ElementData {
-  tagName: string;
-  textContent: string;
-  innerHTML: string;
-  id: string;
-  className: string;
-  color: string;
-  backgroundColor: string;
-  fontSize: string;
-  fontFamily: string;
-  fontWeight: string;
-  lineHeight: string;
-  textAlign: string;
-  display: string;
-  width: string;
-  height: string;
-  margin: string;
-  padding: string;
-  border: string;
-  borderRadius: string;
-  opacity: string;
-}
-
-interface ElementEdit {
-  selector: string;
-  property: string;
-  value: string;
-}
-
-export function VisualEditor({ targetUrl, initialCode = "", onSave, onClose }: VisualEditorProps) {
+export function VisualEditor({
+  targetUrl,
+  initialCode,
+  onSave,
+  onClose,
+  isMinimized,
+  onToggleMinimize,
+}: VisualEditorProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedElement, setSelectedElement] = useState<string | null>(null);
-  const [elementData, setElementData] = useState<ElementData | null>(null);
-  const [edits, setEdits] = useState<ElementEdit[]>([]);
-  const [history, setHistory] = useState<ElementEdit[][]>([[]]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-  const [deviceMode, setDeviceMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  const [selectedElement, setSelectedElement] = useState<ElementData | null>(null);
+  const [changes, setChanges] = useState<Record<string, any>>({});
+  const [changeCount, setChangeCount] = useState(0);
 
-  // Editor state
-  const [isVisible, setIsVisible] = useState(true);
-  const [text, setText] = useState("");
-  const [html, setHtml] = useState("");
-  const [color, setColor] = useState("#000000");
-  const [bgColor, setBgColor] = useState("#ffffff");
-  const [fontSize, setFontSize] = useState("16");
+  // Element state
+  const [visibility, setVisibility] = useState(true);
+
+  // Content state
+  const [textContent, setTextContent] = useState("");
+  const [htmlContent, setHtmlContent] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkTarget, setLinkTarget] = useState("_self");
+
+  // Layout state
+  const [display, setDisplay] = useState("block");
+  const [flexDirection, setFlexDirection] = useState("row");
+  const [justifyContent, setJustifyContent] = useState("flex-start");
+  const [alignItems, setAlignItems] = useState("stretch");
+  const [flexWrap, setFlexWrap] = useState("nowrap");
+  const [marginTop, setMarginTop] = useState(0);
+  const [marginRight, setMarginRight] = useState(0);
+  const [marginBottom, setMarginBottom] = useState(0);
+  const [marginLeft, setMarginLeft] = useState(0);
+  const [paddingTop, setPaddingTop] = useState(0);
+  const [paddingRight, setPaddingRight] = useState(0);
+  const [paddingBottom, setPaddingBottom] = useState(0);
+  const [paddingLeft, setPaddingLeft] = useState(0);
+  const [width, setWidth] = useState("");
+  const [height, setHeight] = useState("");
+  const [maxWidth, setMaxWidth] = useState("");
+
+  // Typography state
+  const [fontSize, setFontSize] = useState(16);
   const [fontWeight, setFontWeight] = useState("400");
-  const [fontFamily, setFontFamily] = useState("inherit");
-  const [lineHeight, setLineHeight] = useState("1.5");
+  const [lineHeight, setLineHeight] = useState(1.5);
+  const [letterSpacing, setLetterSpacing] = useState(0);
+  const [textTransform, setTextTransform] = useState("none");
   const [textAlign, setTextAlign] = useState("left");
-  const [displayMode, setDisplayMode] = useState("block");
+  const [textDecoration, setTextDecoration] = useState("none");
+
+  // Colors & effects state
+  const [textColor, setTextColor] = useState("#000000");
+  const [backgroundColor, setBackgroundColor] = useState("#ffffff");
+  const [borderWidth, setBorderWidth] = useState(0);
+  const [borderStyle, setBorderStyle] = useState("solid");
+  const [borderColor, setBorderColor] = useState("#000000");
+  const [borderRadius, setBorderRadius] = useState(0);
+  const [boxShadowX, setBoxShadowX] = useState(0);
+  const [boxShadowY, setBoxShadowY] = useState(0);
+  const [boxShadowBlur, setBoxShadowBlur] = useState(0);
+  const [boxShadowSpread, setBoxShadowSpread] = useState(0);
+  const [boxShadowColor, setBoxShadowColor] = useState("#000000");
   const [opacity, setOpacity] = useState(100);
-  const [borderRadius, setBorderRadius] = useState("0");
 
   useEffect(() => {
-    if (initialCode) {
-      // TODO: Parse initial code if provided
-    }
-  }, [initialCode]);
+    if (!iframeRef.current) return;
 
-  const getDeviceWidth = () => {
-    switch (deviceMode) {
-      case "mobile":
-        return "375px";
-      case "tablet":
-        return "768px";
-      default:
-        return "100%";
-    }
-  };
-
-  const injectEditorScript = () => {
     const iframe = iframeRef.current;
-    if (!iframe || !iframe.contentWindow) return;
 
-    try {
-      const doc = iframe.contentDocument || iframe.contentWindow.document;
+    const handleLoad = () => {
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) return;
 
-      // Inject CSS for element highlighting
-      const style = doc.createElement("style");
+      // Inject styles for hover and selection
+      const style = iframeDoc.createElement("style");
       style.textContent = `
         .rybbit-hover {
           outline: 2px dashed #3b82f6 !important;
@@ -122,648 +155,991 @@ export function VisualEditor({ targetUrl, initialCode = "", onSave, onClose }: V
           cursor: pointer !important;
         }
         .rybbit-selected {
-          outline: 2px solid #ef4444 !important;
+          outline: 2px solid #10b981 !important;
           outline-offset: 2px !important;
-          background-color: rgba(239, 68, 68, 0.1) !important;
         }
       `;
-      doc.head.appendChild(style);
+      iframeDoc.head.appendChild(style);
 
-      // Inject interaction script
-      const script = doc.createElement("script");
-      script.textContent = `
-        (function() {
-          let selectedElement = null;
+      // Prevent ALL navigation and interactions
+      const preventDefaults = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      };
 
-          // Prevent ALL navigation in edit mode
-          document.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
+      // Capture phase to intercept before any other handlers
+      iframeDoc.addEventListener("click", preventDefaults, true);
+      iframeDoc.addEventListener("submit", preventDefaults, true);
+      iframeDoc.addEventListener("auxclick", preventDefaults, true);
+      iframeDoc.addEventListener("contextmenu", preventDefaults, true);
 
-            // Deselect previous
-            if (selectedElement) {
-              selectedElement.classList.remove('rybbit-selected');
-            }
+      // Add selection logic AFTER preventing defaults
+      iframeDoc.addEventListener("click", (e: any) => {
+        const target = e.target as HTMLElement;
+        if (!target) return;
 
-            // Select new
-            selectedElement = e.target;
-            selectedElement.classList.add('rybbit-selected');
-            selectedElement.classList.remove('rybbit-hover');
+        // Remove previous selection
+        iframeDoc.querySelectorAll(".rybbit-selected").forEach((el) => {
+          el.classList.remove("rybbit-selected");
+        });
 
-            // Get computed styles
-            const computed = window.getComputedStyle(e.target);
+        // Add selection to clicked element
+        target.classList.add("rybbit-selected");
 
-            // Send message to parent with full element data
-            const selector = generateSelector(e.target);
-            window.parent.postMessage({
-              type: 'rybbit-element-selected',
-              selector: selector,
-              element: {
-                tagName: e.target.tagName.toLowerCase(),
-                textContent: e.target.textContent,
-                innerHTML: e.target.innerHTML,
-                id: e.target.id,
-                className: e.target.className,
-                // Computed styles
-                color: computed.color,
-                backgroundColor: computed.backgroundColor,
-                fontSize: computed.fontSize,
-                fontFamily: computed.fontFamily,
-                fontWeight: computed.fontWeight,
-                lineHeight: computed.lineHeight,
-                textAlign: computed.textAlign,
-                display: computed.display,
-                width: computed.width,
-                height: computed.height,
-                margin: computed.margin,
-                padding: computed.padding,
-                border: computed.border,
-                borderRadius: computed.borderRadius,
-                opacity: computed.opacity,
-              }
-            }, '*');
-          }, true); // Use capture phase to prevent ALL clicks
+        // Extract element data
+        const computedStyles = window.getComputedStyle(target);
+        const selector = generateSelector(target);
 
-          // Prevent form submissions
-          document.addEventListener('submit', function(e) {
-            e.preventDefault();
-          }, true);
+        const elementData: ElementData = {
+          selector,
+          tagName: target.tagName.toLowerCase(),
+          textContent: target.textContent || "",
+          innerHTML: target.innerHTML || "",
+          computedStyles,
+          display: computedStyles.display,
+          width: computedStyles.width,
+          height: computedStyles.height,
+          maxWidth: computedStyles.maxWidth,
+          marginTop: computedStyles.marginTop,
+          marginRight: computedStyles.marginRight,
+          marginBottom: computedStyles.marginBottom,
+          marginLeft: computedStyles.marginLeft,
+          paddingTop: computedStyles.paddingTop,
+          paddingRight: computedStyles.paddingRight,
+          paddingBottom: computedStyles.paddingBottom,
+          paddingLeft: computedStyles.paddingLeft,
+          fontFamily: computedStyles.fontFamily,
+          fontSize: computedStyles.fontSize,
+          fontWeight: computedStyles.fontWeight,
+          lineHeight: computedStyles.lineHeight,
+          letterSpacing: computedStyles.letterSpacing,
+          textTransform: computedStyles.textTransform,
+          textAlign: computedStyles.textAlign,
+          textDecoration: computedStyles.textDecoration,
+          color: computedStyles.color,
+          backgroundColor: computedStyles.backgroundColor,
+          borderWidth: computedStyles.borderWidth,
+          borderStyle: computedStyles.borderStyle,
+          borderColor: computedStyles.borderColor,
+          borderRadius: computedStyles.borderRadius,
+          boxShadow: computedStyles.boxShadow,
+          opacity: computedStyles.opacity,
+          flexDirection: computedStyles.flexDirection,
+          justifyContent: computedStyles.justifyContent,
+          alignItems: computedStyles.alignItems,
+          flexWrap: computedStyles.flexWrap,
+          gap: computedStyles.gap,
+        };
 
-          // Hover effect
-          document.addEventListener('mouseover', function(e) {
-            if (e.target.classList.contains('rybbit-selected')) return;
-            e.target.classList.add('rybbit-hover');
-          });
+        setSelectedElement(elementData);
+        populateControls(elementData);
+      }, false);
 
-          document.addEventListener('mouseout', function(e) {
-            e.target.classList.remove('rybbit-hover');
-          });
+      // Hover effects
+      iframeDoc.addEventListener("mouseover", (e: any) => {
+        const target = e.target as HTMLElement;
+        if (target.classList.contains("rybbit-selected")) return;
+        target.classList.add("rybbit-hover");
+      });
 
-          // Generate CSS selector for an element
-          function generateSelector(element) {
-            if (element.id) {
-              return '#' + element.id;
-            }
-
-            if (element.className && typeof element.className === 'string') {
-              const classes = element.className.split(' ').filter(c =>
-                c && !c.startsWith('rybbit-')
-              );
-              if (classes.length > 0) {
-                return element.tagName.toLowerCase() + '.' + classes.join('.');
-              }
-            }
-
-            // Fallback to nth-child
-            let path = [];
-            let current = element;
-            while (current.parentElement) {
-              const parent = current.parentElement;
-              const index = Array.from(parent.children).indexOf(current) + 1;
-              path.unshift(current.tagName.toLowerCase() + ':nth-child(' + index + ')');
-              current = parent;
-              if (current.id || path.length > 5) break;
-            }
-            return path.join(' > ');
-          }
-        })();
-      `;
-      doc.body.appendChild(script);
-
-      setIsLoading(false);
-    } catch (error) {
-      console.error("Failed to inject editor script:", error);
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    // Listen for messages from iframe
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data.type === "rybbit-element-selected") {
-        setSelectedElement(event.data.selector);
-        const el = event.data.element;
-        setElementData(el);
-
-        // Populate editor fields
-        setText(el.textContent || "");
-        setHtml(el.innerHTML || "");
-        setColor(rgbToHex(el.color) || "#000000");
-        setBgColor(rgbToHex(el.backgroundColor) || "#ffffff");
-        setFontSize(parseInt(el.fontSize) || 16);
-        setFontWeight(el.fontWeight || "400");
-        setFontFamily(el.fontFamily || "inherit");
-        setLineHeight(parseFloat(el.lineHeight) || 1.5);
-        setTextAlign(el.textAlign || "left");
-        setDisplayMode(el.display || "block");
-        setOpacity(parseFloat(el.opacity) * 100 || 100);
-        setBorderRadius(parseInt(el.borderRadius) || 0);
-        setIsVisible(el.display !== "none");
-      }
+      iframeDoc.addEventListener("mouseout", (e: any) => {
+        const target = e.target as HTMLElement;
+        target.classList.remove("rybbit-hover");
+      });
     };
 
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
+    iframe.addEventListener("load", handleLoad);
+
+    return () => {
+      iframe.removeEventListener("load", handleLoad);
+    };
   }, []);
 
-  // Helper function to convert RGB to HEX
+  // Generate CSS selector for element
+  const generateSelector = (element: HTMLElement): string => {
+    if (element.id) return `#${element.id}`;
+    if (element.className) {
+      const classes = element.className
+        .split(" ")
+        .filter((c) => c && !c.startsWith("rybbit-"))
+        .map((c) => `.${c}`)
+        .join("");
+      if (classes) return classes;
+    }
+    return element.tagName.toLowerCase();
+  };
+
+  // Populate controls from selected element
+  const populateControls = (data: ElementData) => {
+    // Element
+    setVisibility(data.computedStyles?.display !== "none");
+
+    // Content
+    setTextContent(data.textContent);
+    setHtmlContent(data.innerHTML);
+
+    // Layout
+    setDisplay(data.display);
+    setFlexDirection(data.flexDirection || "row");
+    setJustifyContent(data.justifyContent || "flex-start");
+    setAlignItems(data.alignItems || "stretch");
+    setFlexWrap(data.flexWrap || "nowrap");
+    setMarginTop(parsePx(data.marginTop));
+    setMarginRight(parsePx(data.marginRight));
+    setMarginBottom(parsePx(data.marginBottom));
+    setMarginLeft(parsePx(data.marginLeft));
+    setPaddingTop(parsePx(data.paddingTop));
+    setPaddingRight(parsePx(data.paddingRight));
+    setPaddingBottom(parsePx(data.paddingBottom));
+    setPaddingLeft(parsePx(data.paddingLeft));
+    setWidth(data.width);
+    setHeight(data.height);
+    setMaxWidth(data.maxWidth);
+
+    // Typography
+    setFontSize(parsePx(data.fontSize));
+    setFontWeight(data.fontWeight || "400");
+    setLineHeight(parseFloat(data.lineHeight) / parsePx(data.fontSize) || 1.5);
+    setLetterSpacing(parsePx(data.letterSpacing));
+    setTextTransform(data.textTransform || "none");
+    setTextAlign(data.textAlign || "left");
+    setTextDecoration(data.textDecoration.split(" ")[0] || "none");
+
+    // Colors & effects
+    setTextColor(rgbToHex(data.color));
+    setBackgroundColor(rgbToHex(data.backgroundColor));
+    setBorderWidth(parsePx(data.borderWidth));
+    setBorderStyle(data.borderStyle || "solid");
+    setBorderColor(rgbToHex(data.borderColor));
+    setBorderRadius(parsePx(data.borderRadius));
+
+    // Parse box shadow
+    if (data.boxShadow && data.boxShadow !== "none") {
+      const shadowParts = data.boxShadow.match(/(-?\d+\.?\d*)px/g);
+      if (shadowParts && shadowParts.length >= 4) {
+        setBoxShadowX(parsePx(shadowParts[0]));
+        setBoxShadowY(parsePx(shadowParts[1]));
+        setBoxShadowBlur(parsePx(shadowParts[2]));
+        setBoxShadowSpread(parsePx(shadowParts[3]));
+      }
+    }
+
+    setOpacity(Math.round(parseFloat(data.opacity) * 100));
+  };
+
+  // Helper functions
+  const parsePx = (value: string): number => {
+    const num = parseFloat(value);
+    return isNaN(num) ? 0 : Math.round(num);
+  };
+
   const rgbToHex = (rgb: string): string => {
-    if (!rgb || rgb === 'rgba(0, 0, 0, 0)' || rgb === 'transparent') return "#ffffff";
-    const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
-    if (!match) return rgb;
-    const r = parseInt(match[1]);
-    const g = parseInt(match[2]);
-    const b = parseInt(match[3]);
-    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    if (!rgb || rgb === "rgba(0, 0, 0, 0)") return "#ffffff";
+    const match = rgb.match(/\d+/g);
+    if (!match) return "#000000";
+    const r = parseInt(match[0]).toString(16).padStart(2, "0");
+    const g = parseInt(match[1]).toString(16).padStart(2, "0");
+    const b = parseInt(match[2]).toString(16).padStart(2, "0");
+    return `#${r}${g}${b}`;
   };
 
-  const applyStyle = (property: string, value: string) => {
-    if (!selectedElement) return;
+  // Apply style change to iframe element
+  const applyStyle = (property: string, value: any) => {
+    if (!selectedElement || !iframeRef.current) return;
 
-    const iframe = iframeRef.current;
-    if (!iframe || !iframe.contentWindow) return;
+    const iframeDoc = iframeRef.current.contentDocument;
+    if (!iframeDoc) return;
 
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-    const element = doc.querySelector(selectedElement);
+    const element = iframeDoc.querySelector(selectedElement.selector) as HTMLElement;
+    if (!element) return;
 
-    if (element) {
-      if (property === "textContent") {
-        element.textContent = value;
-      } else if (property === "innerHTML") {
-        element.innerHTML = value;
-      } else {
-        (element as HTMLElement).style[property as any] = value;
-      }
+    // Track the change
+    const newChanges = { ...changes };
+    if (!newChanges[selectedElement.selector]) {
+      newChanges[selectedElement.selector] = {};
+    }
+    newChanges[selectedElement.selector][property] = value;
+    setChanges(newChanges);
+    setChangeCount(Object.keys(newChanges).reduce((sum, sel) => sum + Object.keys(newChanges[sel]).length, 0));
 
-      // Track edit
-      const newEdit: ElementEdit = { selector: selectedElement, property, value };
-      const newEdits = [...edits, newEdit];
-      setEdits(newEdits);
-
-      // Update history
-      const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push(newEdits);
-      setHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
+    // Apply the change
+    if (property === "textContent") {
+      element.textContent = value;
+    } else if (property === "innerHTML") {
+      element.innerHTML = value;
+    } else if (property === "display") {
+      element.style.display = value;
+    } else {
+      (element.style as any)[property] = value;
     }
   };
 
-  const undo = () => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      const editsToApply = history[newIndex];
-      setEdits(editsToApply);
-      reapplyAllEdits(editsToApply);
-    }
-  };
+  // Generate JavaScript code from changes
+  const generateCode = (): string => {
+    const lines: string[] = [];
 
-  const redo = () => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      const editsToApply = history[newIndex];
-      setEdits(editsToApply);
-      reapplyAllEdits(editsToApply);
-    }
-  };
-
-  const reapplyAllEdits = (editsToApply: ElementEdit[]) => {
-    const iframe = iframeRef.current;
-    if (!iframe || !iframe.contentWindow) return;
-
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-
-    editsToApply.forEach((edit) => {
-      try {
-        const element = doc.querySelector(edit.selector);
-        if (element) {
-          if (edit.property === "textContent") {
-            element.textContent = edit.value;
-          } else if (edit.property === "innerHTML") {
-            element.innerHTML = edit.value;
-          } else {
-            (element as HTMLElement).style[edit.property as any] = edit.value;
-          }
+    for (const [selector, styles] of Object.entries(changes)) {
+      for (const [property, value] of Object.entries(styles)) {
+        if (property === "textContent") {
+          lines.push(`document.querySelector('${selector}').textContent = '${value}';`);
+        } else if (property === "innerHTML") {
+          lines.push(`document.querySelector('${selector}').innerHTML = '${value}';`);
+        } else {
+          lines.push(`document.querySelector('${selector}').style.${property} = '${value}';`);
         }
-      } catch (error) {
-        console.error("Failed to apply edit:", error);
       }
-    });
-  };
+    }
 
-  const generateCode = () => {
-    let code = `(function() {\n`;
-
-    edits.forEach((edit) => {
-      code += `  var el = document.querySelector('${edit.selector}');\n`;
-      code += `  if (el) {\n`;
-
-      if (edit.property === "textContent") {
-        code += `    el.textContent = ${JSON.stringify(edit.value)};\n`;
-      } else if (edit.property === "innerHTML") {
-        code += `    el.innerHTML = ${JSON.stringify(edit.value)};\n`;
-      } else {
-        code += `    el.style.${edit.property} = ${JSON.stringify(edit.value)};\n`;
-      }
-
-      code += `  }\n`;
-    });
-
-    code += `})();`;
-    return code;
+    return `(function() {\n  ${lines.join("\n  ")}\n})();`;
   };
 
   const handleSave = () => {
     const code = generateCode();
     onSave(code);
+    onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-[100] bg-black bg-opacity-70 flex items-center justify-center">
-      <div className="bg-white dark:bg-neutral-900 w-full h-full flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
-          <div className="flex items-center gap-4">
-            <div>
-              <h2 className="text-lg font-semibold">Visual Editor</h2>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                Click elements to edit • Experiment wizard is minimized
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant={deviceMode === "desktop" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setDeviceMode("desktop")}
-              >
-                <Monitor className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={deviceMode === "tablet" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setDeviceMode("tablet")}
-              >
-                <Tablet className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={deviceMode === "mobile" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setDeviceMode("mobile")}
-              >
-                <Smartphone className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+  if (isMinimized) {
+    return (
+      <Button
+        onClick={onToggleMinimize}
+        className="fixed bottom-6 right-6 z-[60] shadow-lg"
+        size="lg"
+      >
+        <MousePointer className="w-4 h-4 mr-2" />
+        Resume Visual Editor
+      </Button>
+    );
+  }
 
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={undo} disabled={historyIndex === 0}>
-              <Undo className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={redo} disabled={historyIndex === history.length - 1}>
-              <Redo className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={onClose}>
-              <X className="w-4 h-4" />
-              Close
-            </Button>
-            <Button size="sm" onClick={handleSave}>
-              <Save className="w-4 h-4 mr-2" />
-              Save Changes
-            </Button>
+  return (
+    <div className="fixed inset-0 z-[100] flex bg-black/80 backdrop-blur-sm">
+      {/* Left Panel - Editor Controls */}
+      <div className="w-96 bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 overflow-y-auto">
+        <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 sticky top-0 bg-white dark:bg-neutral-900 z-10">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold">Visual Editor</h3>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={onToggleMinimize}>
+                <Minimize2 className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
+          <p className="text-xs text-neutral-500">
+            Click elements to edit • {changeCount} change{changeCount !== 1 ? "s" : ""}
+          </p>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Iframe Preview */}
-          <div className="flex-1 flex items-center justify-center bg-neutral-100 dark:bg-neutral-950 p-4 overflow-auto">
-            <div
-              style={{
-                width: getDeviceWidth(),
-                height: "100%",
-                maxHeight: "100%",
-                transition: "width 0.3s ease",
-              }}
-            >
-              {isLoading && (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-neutral-600 dark:text-neutral-400">Loading page...</div>
-                </div>
+        {selectedElement ? (
+          <Tabs defaultValue="element" className="p-4">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="element" className="text-xs">
+                <MousePointer className="w-3 h-3" />
+              </TabsTrigger>
+              <TabsTrigger value="content" className="text-xs">
+                <Code className="w-3 h-3" />
+              </TabsTrigger>
+              <TabsTrigger value="layout" className="text-xs">
+                <Layout className="w-3 h-3" />
+              </TabsTrigger>
+              <TabsTrigger value="typography" className="text-xs">
+                <Type className="w-3 h-3" />
+              </TabsTrigger>
+              <TabsTrigger value="colors" className="text-xs">
+                <Palette className="w-3 h-3" />
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Element Tab */}
+            <TabsContent value="element" className="space-y-4">
+              <div>
+                <Label className="text-xs text-neutral-500">CSS Selector</Label>
+                <Input value={selectedElement.selector} readOnly className="font-mono text-xs" />
+              </div>
+
+              <div>
+                <Label className="text-xs text-neutral-500">HTML Tag</Label>
+                <Input value={selectedElement.tagName} readOnly className="font-mono text-xs" />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label>Visibility</Label>
+                <Switch
+                  checked={visibility}
+                  onCheckedChange={(checked) => {
+                    setVisibility(checked);
+                    applyStyle("display", checked ? "block" : "none");
+                  }}
+                />
+              </div>
+            </TabsContent>
+
+            {/* Content Tab */}
+            <TabsContent value="content" className="space-y-4">
+              <div>
+                <Label>Text Content</Label>
+                <Textarea
+                  value={textContent}
+                  onChange={(e) => {
+                    setTextContent(e.target.value);
+                    applyStyle("textContent", e.target.value);
+                  }}
+                  rows={4}
+                  placeholder="Element text content..."
+                />
+              </div>
+
+              <div>
+                <Label>HTML Content</Label>
+                <Textarea
+                  value={htmlContent}
+                  onChange={(e) => {
+                    setHtmlContent(e.target.value);
+                    applyStyle("innerHTML", e.target.value);
+                  }}
+                  rows={6}
+                  className="font-mono text-xs"
+                  placeholder="<div>HTML content...</div>"
+                />
+              </div>
+
+              {selectedElement.tagName === "a" && (
+                <>
+                  <div>
+                    <Label>Link URL</Label>
+                    <Input
+                      value={linkUrl}
+                      onChange={(e) => {
+                        setLinkUrl(e.target.value);
+                        applyStyle("href", e.target.value);
+                      }}
+                      placeholder="https://example.com"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Link Target</Label>
+                    <Select value={linkTarget} onValueChange={setLinkTarget}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_self">Same Tab</SelectItem>
+                        <SelectItem value="_blank">New Tab</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
               )}
-              <iframe
-                ref={iframeRef}
-                src={targetUrl}
-                onLoad={injectEditorScript}
-                className="w-full h-full bg-white rounded-lg shadow-lg"
-                sandbox="allow-same-origin allow-scripts allow-forms"
-                style={{ display: isLoading ? "none" : "block" }}
-              />
-            </div>
-          </div>
+            </TabsContent>
 
-          {/* Editor Panel */}
-          <div className="w-96 border-l border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 overflow-y-auto">
-            {!selectedElement ? (
-              <div className="flex flex-col items-center justify-center h-full text-center p-8 text-neutral-500 dark:text-neutral-400">
-                <MousePointer className="w-12 h-12 mb-4 opacity-50" />
-                <h3 className="text-lg font-medium mb-2">No Element Selected</h3>
-                <p className="text-sm">Click on any element in the preview to start editing</p>
+            {/* Layout & Spacing Tab */}
+            <TabsContent value="layout" className="space-y-4">
+              <div>
+                <Label>Display Mode</Label>
+                <Select
+                  value={display}
+                  onValueChange={(value) => {
+                    setDisplay(value);
+                    applyStyle("display", value);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="block">Block</SelectItem>
+                    <SelectItem value="inline-block">Inline Block</SelectItem>
+                    <SelectItem value="flex">Flex</SelectItem>
+                    <SelectItem value="grid">Grid</SelectItem>
+                    <SelectItem value="none">Hidden</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            ) : (
-              <Tabs defaultValue="element" className="w-full">
-                <TabsList className="grid w-full grid-cols-5">
-                  <TabsTrigger value="element" className="text-xs px-2">
-                    <Box className="w-3 h-3" />
-                  </TabsTrigger>
-                  <TabsTrigger value="content" className="text-xs px-2">
-                    <Type className="w-3 h-3" />
-                  </TabsTrigger>
-                  <TabsTrigger value="layout" className="text-xs px-2">
-                    <Layout className="w-3 h-3" />
-                  </TabsTrigger>
-                  <TabsTrigger value="typography" className="text-xs px-2">
-                    <Type className="w-3 h-3" />
-                  </TabsTrigger>
-                  <TabsTrigger value="colors" className="text-xs px-2">
-                    <Palette className="w-3 h-3" />
-                  </TabsTrigger>
-                </TabsList>
 
-                {/* Element Tab */}
-                <TabsContent value="element" className="p-4 space-y-4">
+              {display === "flex" && (
+                <>
                   <div>
-                    <Label className="text-xs font-medium">Selector</Label>
-                    <code className="text-xs block p-2 bg-neutral-100 dark:bg-neutral-800 rounded mt-1">
-                      {selectedElement}
-                    </code>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs font-medium">HTML Tag</Label>
-                    <p className="text-sm mt-1 text-neutral-600 dark:text-neutral-400">
-                      &lt;{elementData?.tagName}&gt;
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium">Visibility</Label>
-                    <Switch
-                      checked={isVisible}
-                      onCheckedChange={(checked) => {
-                        setIsVisible(checked);
-                        applyStyle("display", checked ? displayMode : "none");
-                      }}
-                    />
-                  </div>
-                </TabsContent>
-
-                {/* Content Tab */}
-                <TabsContent value="content" className="p-4 space-y-4">
-                  <div>
-                    <Label htmlFor="text" className="text-xs font-medium">
-                      Text Content
-                    </Label>
-                    <Textarea
-                      id="text"
-                      value={text}
-                      onChange={(e) => {
-                        setText(e.target.value);
-                        applyStyle("textContent", e.target.value);
-                      }}
-                      rows={6}
-                      className="mt-1 text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="html" className="text-xs font-medium">
-                      HTML Content
-                    </Label>
-                    <Textarea
-                      id="html"
-                      value={html}
-                      onChange={(e) => {
-                        setHtml(e.target.value);
-                        applyStyle("innerHTML", e.target.value);
-                      }}
-                      rows={8}
-                      className="mt-1 text-xs font-mono"
-                    />
-                  </div>
-                </TabsContent>
-
-                {/* Layout & Spacing Tab */}
-                <TabsContent value="layout" className="p-4 space-y-4">
-                  <div>
-                    <Label className="text-xs font-medium">Display Mode</Label>
+                    <Label>Flex Direction</Label>
                     <Select
-                      value={displayMode}
+                      value={flexDirection}
                       onValueChange={(value) => {
-                        setDisplayMode(value);
-                        applyStyle("display", value);
+                        setFlexDirection(value);
+                        applyStyle("flexDirection", value);
                       }}
                     >
-                      <SelectTrigger className="mt-1">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="block">Block</SelectItem>
-                        <SelectItem value="inline-block">Inline Block</SelectItem>
-                        <SelectItem value="flex">Flex</SelectItem>
-                        <SelectItem value="grid">Grid</SelectItem>
-                        <SelectItem value="none">Hidden</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </TabsContent>
-
-                {/* Typography Tab */}
-                <TabsContent value="typography" className="p-4 space-y-4">
-                  <div>
-                    <Label className="text-xs font-medium">Font Size</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Slider
-                        value={[parseInt(fontSize.toString())]}
-                        onValueChange={([value]) => {
-                          setFontSize(value);
-                          applyStyle("fontSize", value + "px");
-                        }}
-                        min={8}
-                        max={72}
-                        step={1}
-                        className="flex-1"
-                      />
-                      <span className="text-sm w-12 text-right">{fontSize}px</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs font-medium">Font Weight</Label>
-                    <Select
-                      value={fontWeight}
-                      onValueChange={(value) => {
-                        setFontWeight(value);
-                        applyStyle("fontWeight", value);
-                      }}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="300">Light (300)</SelectItem>
-                        <SelectItem value="400">Normal (400)</SelectItem>
-                        <SelectItem value="500">Medium (500)</SelectItem>
-                        <SelectItem value="600">Semi-Bold (600)</SelectItem>
-                        <SelectItem value="700">Bold (700)</SelectItem>
+                        <SelectItem value="row">Row</SelectItem>
+                        <SelectItem value="column">Column</SelectItem>
+                        <SelectItem value="row-reverse">Row Reverse</SelectItem>
+                        <SelectItem value="column-reverse">Column Reverse</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div>
-                    <Label className="text-xs font-medium">Line Height</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Slider
-                        value={[parseFloat(lineHeight.toString())]}
-                        onValueChange={([value]) => {
-                          setLineHeight(value);
-                          applyStyle("lineHeight", value.toString());
-                        }}
-                        min={1}
-                        max={3}
-                        step={0.1}
-                        className="flex-1"
-                      />
-                      <span className="text-sm w-12 text-right">{lineHeight}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs font-medium">Text Align</Label>
+                    <Label>Justify Content</Label>
                     <Select
-                      value={textAlign}
+                      value={justifyContent}
                       onValueChange={(value) => {
-                        setTextAlign(value);
-                        applyStyle("textAlign", value);
+                        setJustifyContent(value);
+                        applyStyle("justifyContent", value);
                       }}
                     >
-                      <SelectTrigger className="mt-1">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="left">Left</SelectItem>
+                        <SelectItem value="flex-start">Start</SelectItem>
                         <SelectItem value="center">Center</SelectItem>
-                        <SelectItem value="right">Right</SelectItem>
-                        <SelectItem value="justify">Justify</SelectItem>
+                        <SelectItem value="flex-end">End</SelectItem>
+                        <SelectItem value="space-between">Space Between</SelectItem>
+                        <SelectItem value="space-around">Space Around</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                </TabsContent>
-
-                {/* Colors & Effects Tab */}
-                <TabsContent value="colors" className="p-4 space-y-4">
-                  <div>
-                    <Label htmlFor="color" className="text-xs font-medium">
-                      Text Color
-                    </Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Input
-                        id="color"
-                        type="color"
-                        value={color}
-                        onChange={(e) => {
-                          setColor(e.target.value);
-                          applyStyle("color", e.target.value);
-                        }}
-                        className="w-20 h-10"
-                      />
-                      <Input
-                        type="text"
-                        value={color}
-                        onChange={(e) => {
-                          setColor(e.target.value);
-                          applyStyle("color", e.target.value);
-                        }}
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
 
                   <div>
-                    <Label htmlFor="bgColor" className="text-xs font-medium">
-                      Background Color
-                    </Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Input
-                        id="bgColor"
-                        type="color"
-                        value={bgColor}
-                        onChange={(e) => {
-                          setBgColor(e.target.value);
-                          applyStyle("backgroundColor", e.target.value);
-                        }}
-                        className="w-20 h-10"
-                      />
-                      <Input
-                        type="text"
-                        value={bgColor}
-                        onChange={(e) => {
-                          setBgColor(e.target.value);
-                          applyStyle("backgroundColor", e.target.value);
-                        }}
-                        className="flex-1"
-                      />
-                    </div>
+                    <Label>Align Items</Label>
+                    <Select
+                      value={alignItems}
+                      onValueChange={(value) => {
+                        setAlignItems(value);
+                        applyStyle("alignItems", value);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="stretch">Stretch</SelectItem>
+                        <SelectItem value="flex-start">Start</SelectItem>
+                        <SelectItem value="center">Center</SelectItem>
+                        <SelectItem value="flex-end">End</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+                </>
+              )}
 
+              <div className="space-y-2">
+                <Label>Margin (px)</Label>
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-xs font-medium">Border Radius</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Slider
-                        value={[parseInt(borderRadius.toString())]}
-                        onValueChange={([value]) => {
-                          setBorderRadius(value);
-                          applyStyle("borderRadius", value + "px");
-                        }}
-                        min={0}
-                        max={50}
-                        step={1}
-                        className="flex-1"
-                      />
-                      <span className="text-sm w-12 text-right">{borderRadius}px</span>
-                    </div>
+                    <Input
+                      type="number"
+                      placeholder="Top"
+                      value={marginTop}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setMarginTop(val);
+                        applyStyle("marginTop", `${val}px`);
+                      }}
+                    />
                   </div>
-
                   <div>
-                    <Label className="text-xs font-medium">Opacity</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Slider
-                        value={[opacity]}
-                        onValueChange={([value]) => {
-                          setOpacity(value);
-                          applyStyle("opacity", (value / 100).toString());
-                        }}
-                        min={0}
-                        max={100}
-                        step={1}
-                        className="flex-1"
-                      />
-                      <span className="text-sm w-12 text-right">{opacity}%</span>
-                    </div>
+                    <Input
+                      type="number"
+                      placeholder="Right"
+                      value={marginRight}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setMarginRight(val);
+                        applyStyle("marginRight", `${val}px`);
+                      }}
+                    />
                   </div>
-                </TabsContent>
-              </Tabs>
-            )}
-
-            {/* Change Counter */}
-            {edits.length > 0 && (
-              <div className="p-4 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900">
-                <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                  {edits.length} change{edits.length !== 1 ? 's' : ''} made
-                </p>
+                  <div>
+                    <Input
+                      type="number"
+                      placeholder="Bottom"
+                      value={marginBottom}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setMarginBottom(val);
+                        applyStyle("marginBottom", `${val}px`);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      type="number"
+                      placeholder="Left"
+                      value={marginLeft}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setMarginLeft(val);
+                        applyStyle("marginLeft", `${val}px`);
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
-            )}
+
+              <div className="space-y-2">
+                <Label>Padding (px)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Input
+                      type="number"
+                      placeholder="Top"
+                      value={paddingTop}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setPaddingTop(val);
+                        applyStyle("paddingTop", `${val}px`);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      type="number"
+                      placeholder="Right"
+                      value={paddingRight}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setPaddingRight(val);
+                        applyStyle("paddingRight", `${val}px`);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      type="number"
+                      placeholder="Bottom"
+                      value={paddingBottom}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setPaddingBottom(val);
+                        applyStyle("paddingBottom", `${val}px`);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      type="number"
+                      placeholder="Left"
+                      value={paddingLeft}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setPaddingLeft(val);
+                        applyStyle("paddingLeft", `${val}px`);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Typography Tab */}
+            <TabsContent value="typography" className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Font Size</Label>
+                  <span className="text-sm font-medium">{fontSize}px</span>
+                </div>
+                <Slider
+                  value={[fontSize]}
+                  onValueChange={([value]) => {
+                    setFontSize(value);
+                    applyStyle("fontSize", `${value}px`);
+                  }}
+                  min={8}
+                  max={72}
+                  step={1}
+                />
+              </div>
+
+              <div>
+                <Label>Font Weight</Label>
+                <Select
+                  value={fontWeight}
+                  onValueChange={(value) => {
+                    setFontWeight(value);
+                    applyStyle("fontWeight", value);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="300">Light</SelectItem>
+                    <SelectItem value="400">Normal</SelectItem>
+                    <SelectItem value="500">Medium</SelectItem>
+                    <SelectItem value="600">Semi-Bold</SelectItem>
+                    <SelectItem value="700">Bold</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Line Height</Label>
+                  <span className="text-sm font-medium">{lineHeight.toFixed(1)}</span>
+                </div>
+                <Slider
+                  value={[lineHeight]}
+                  onValueChange={([value]) => {
+                    setLineHeight(value);
+                    applyStyle("lineHeight", value.toString());
+                  }}
+                  min={1.0}
+                  max={3.0}
+                  step={0.1}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Letter Spacing</Label>
+                  <span className="text-sm font-medium">{letterSpacing}px</span>
+                </div>
+                <Slider
+                  value={[letterSpacing]}
+                  onValueChange={([value]) => {
+                    setLetterSpacing(value);
+                    applyStyle("letterSpacing", `${value}px`);
+                  }}
+                  min={-2}
+                  max={10}
+                  step={0.5}
+                />
+              </div>
+
+              <div>
+                <Label>Text Transform</Label>
+                <Select
+                  value={textTransform}
+                  onValueChange={(value) => {
+                    setTextTransform(value);
+                    applyStyle("textTransform", value);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="uppercase">UPPERCASE</SelectItem>
+                    <SelectItem value="lowercase">lowercase</SelectItem>
+                    <SelectItem value="capitalize">Capitalize</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Text Align</Label>
+                <Select
+                  value={textAlign}
+                  onValueChange={(value) => {
+                    setTextAlign(value);
+                    applyStyle("textAlign", value);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="left">Left</SelectItem>
+                    <SelectItem value="center">Center</SelectItem>
+                    <SelectItem value="right">Right</SelectItem>
+                    <SelectItem value="justify">Justify</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Text Decoration</Label>
+                <Select
+                  value={textDecoration}
+                  onValueChange={(value) => {
+                    setTextDecoration(value);
+                    applyStyle("textDecoration", value);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="underline">Underline</SelectItem>
+                    <SelectItem value="line-through">Line Through</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </TabsContent>
+
+            {/* Colors & Effects Tab */}
+            <TabsContent value="colors" className="space-y-4">
+              <div>
+                <Label>Text Color</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    value={textColor}
+                    onChange={(e) => {
+                      setTextColor(e.target.value);
+                      applyStyle("color", e.target.value);
+                    }}
+                    className="w-16 h-10"
+                  />
+                  <Input
+                    value={textColor}
+                    onChange={(e) => {
+                      setTextColor(e.target.value);
+                      applyStyle("color", e.target.value);
+                    }}
+                    className="flex-1 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Background Color</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    value={backgroundColor}
+                    onChange={(e) => {
+                      setBackgroundColor(e.target.value);
+                      applyStyle("backgroundColor", e.target.value);
+                    }}
+                    className="w-16 h-10"
+                  />
+                  <Input
+                    value={backgroundColor}
+                    onChange={(e) => {
+                      setBackgroundColor(e.target.value);
+                      applyStyle("backgroundColor", e.target.value);
+                    }}
+                    className="flex-1 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Border Width</Label>
+                  <span className="text-sm font-medium">{borderWidth}px</span>
+                </div>
+                <Slider
+                  value={[borderWidth]}
+                  onValueChange={([value]) => {
+                    setBorderWidth(value);
+                    applyStyle("borderWidth", `${value}px`);
+                  }}
+                  min={0}
+                  max={20}
+                  step={1}
+                />
+              </div>
+
+              <div>
+                <Label>Border Style</Label>
+                <Select
+                  value={borderStyle}
+                  onValueChange={(value) => {
+                    setBorderStyle(value);
+                    applyStyle("borderStyle", value);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="solid">Solid</SelectItem>
+                    <SelectItem value="dashed">Dashed</SelectItem>
+                    <SelectItem value="dotted">Dotted</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Border Color</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    value={borderColor}
+                    onChange={(e) => {
+                      setBorderColor(e.target.value);
+                      applyStyle("borderColor", e.target.value);
+                    }}
+                    className="w-16 h-10"
+                  />
+                  <Input
+                    value={borderColor}
+                    onChange={(e) => {
+                      setBorderColor(e.target.value);
+                      applyStyle("borderColor", e.target.value);
+                    }}
+                    className="flex-1 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Border Radius</Label>
+                  <span className="text-sm font-medium">{borderRadius}px</span>
+                </div>
+                <Slider
+                  value={[borderRadius]}
+                  onValueChange={([value]) => {
+                    setBorderRadius(value);
+                    applyStyle("borderRadius", `${value}px`);
+                  }}
+                  min={0}
+                  max={50}
+                  step={1}
+                />
+              </div>
+
+              <div>
+                <Label className="mb-2 block">Box Shadow</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs w-12">X:</Label>
+                    <Slider
+                      value={[boxShadowX]}
+                      onValueChange={([value]) => {
+                        setBoxShadowX(value);
+                        applyStyle(
+                          "boxShadow",
+                          `${value}px ${boxShadowY}px ${boxShadowBlur}px ${boxShadowSpread}px ${boxShadowColor}`
+                        );
+                      }}
+                      min={-20}
+                      max={20}
+                      step={1}
+                      className="flex-1"
+                    />
+                    <span className="text-xs w-8">{boxShadowX}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs w-12">Y:</Label>
+                    <Slider
+                      value={[boxShadowY]}
+                      onValueChange={([value]) => {
+                        setBoxShadowY(value);
+                        applyStyle(
+                          "boxShadow",
+                          `${boxShadowX}px ${value}px ${boxShadowBlur}px ${boxShadowSpread}px ${boxShadowColor}`
+                        );
+                      }}
+                      min={-20}
+                      max={20}
+                      step={1}
+                      className="flex-1"
+                    />
+                    <span className="text-xs w-8">{boxShadowY}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs w-12">Blur:</Label>
+                    <Slider
+                      value={[boxShadowBlur]}
+                      onValueChange={([value]) => {
+                        setBoxShadowBlur(value);
+                        applyStyle(
+                          "boxShadow",
+                          `${boxShadowX}px ${boxShadowY}px ${value}px ${boxShadowSpread}px ${boxShadowColor}`
+                        );
+                      }}
+                      min={0}
+                      max={50}
+                      step={1}
+                      className="flex-1"
+                    />
+                    <span className="text-xs w-8">{boxShadowBlur}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs w-12">Spread:</Label>
+                    <Slider
+                      value={[boxShadowSpread]}
+                      onValueChange={([value]) => {
+                        setBoxShadowSpread(value);
+                        applyStyle(
+                          "boxShadow",
+                          `${boxShadowX}px ${boxShadowY}px ${boxShadowBlur}px ${value}px ${boxShadowColor}`
+                        );
+                      }}
+                      min={-20}
+                      max={20}
+                      step={1}
+                      className="flex-1"
+                    />
+                    <span className="text-xs w-8">{boxShadowSpread}</span>
+                  </div>
+                  <Input
+                    type="color"
+                    value={boxShadowColor}
+                    onChange={(e) => {
+                      setBoxShadowColor(e.target.value);
+                      applyStyle(
+                        "boxShadow",
+                        `${boxShadowX}px ${boxShadowY}px ${boxShadowBlur}px ${boxShadowSpread}px ${e.target.value}`
+                      );
+                    }}
+                    className="w-full h-10"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Opacity</Label>
+                  <span className="text-sm font-medium">{opacity}%</span>
+                </div>
+                <Slider
+                  value={[opacity]}
+                  onValueChange={([value]) => {
+                    setOpacity(value);
+                    applyStyle("opacity", (value / 100).toString());
+                  }}
+                  min={0}
+                  max={100}
+                  step={5}
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <div className="p-8 text-center text-neutral-500">
+            <MousePointer className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="text-sm">Click any element on the page to start editing</p>
           </div>
+        )}
+
+        {/* Save Button */}
+        <div className="p-4 border-t border-neutral-200 dark:border-neutral-800 sticky bottom-0 bg-white dark:bg-neutral-900">
+          <Button onClick={handleSave} className="w-full" disabled={changeCount === 0}>
+            <Save className="w-4 h-4 mr-2" />
+            Save Changes ({changeCount})
+          </Button>
+        </div>
+      </div>
+
+      {/* Right Panel - Preview */}
+      <div className="flex-1 flex flex-col">
+        <div className="p-4 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
+          <p className="text-sm text-neutral-600 dark:text-neutral-400">
+            Preview: {targetUrl}
+          </p>
+        </div>
+        <div className="flex-1 bg-neutral-100 dark:bg-neutral-950">
+          <iframe
+            ref={iframeRef}
+            src={targetUrl}
+            className="w-full h-full border-none"
+            sandbox="allow-same-origin allow-scripts"
+          />
         </div>
       </div>
     </div>
