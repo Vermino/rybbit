@@ -169,11 +169,13 @@ export function VisualEditor({
         }
         parsedChanges[selector][property] = value;
 
-        // Apply to iframe
-        const element = iframeDoc.querySelector(selector) as HTMLElement;
-        if (element) {
-          (element.style as any)[property] = value;
-        }
+        // Apply to iframe - apply to ALL matching elements
+        const elements = iframeDoc.querySelectorAll(selector);
+        console.log(`Visual Editor: Applying ${property}=${value} to selector "${selector}" (found ${elements.length} elements)`);
+        elements.forEach((el) => {
+          const htmlEl = el as HTMLElement;
+          (htmlEl.style as any)[property] = value;
+        });
       }
 
       // Parse textContent changes
@@ -184,11 +186,13 @@ export function VisualEditor({
         }
         parsedChanges[selector].textContent = value;
 
-        // Apply to iframe
-        const element = iframeDoc.querySelector(selector) as HTMLElement;
-        if (element) {
-          element.textContent = value;
-        }
+        // Apply to iframe - apply to ALL matching elements
+        const elements = iframeDoc.querySelectorAll(selector);
+        console.log(`Visual Editor: Applying textContent="${value}" to selector "${selector}" (found ${elements.length} elements)`);
+        elements.forEach((el) => {
+          const htmlEl = el as HTMLElement;
+          htmlEl.textContent = value;
+        });
       }
 
       // Parse innerHTML changes
@@ -199,11 +203,13 @@ export function VisualEditor({
         }
         parsedChanges[selector].innerHTML = value;
 
-        // Apply to iframe
-        const element = iframeDoc.querySelector(selector) as HTMLElement;
-        if (element) {
-          element.innerHTML = value;
-        }
+        // Apply to iframe - apply to ALL matching elements
+        const elements = iframeDoc.querySelectorAll(selector);
+        console.log(`Visual Editor: Applying innerHTML to selector "${selector}" (found ${elements.length} elements)`);
+        elements.forEach((el) => {
+          const htmlEl = el as HTMLElement;
+          htmlEl.innerHTML = value;
+        });
       }
 
       // Update state with parsed changes
