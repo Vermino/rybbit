@@ -10,6 +10,7 @@ import {
   MousePointerClick,
   Rewind,
   Settings,
+  ShoppingCart,
   Split,
   Target,
   User,
