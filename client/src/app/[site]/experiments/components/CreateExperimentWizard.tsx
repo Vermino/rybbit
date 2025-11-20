@@ -641,11 +641,11 @@ export function CreateExperimentWizard({
                 <p className="text-sm font-medium">{experimentData.trafficAllocation}%</p>
               </div>
 
-              {experimentData.targetingRules.urlMatch && (
+              {experimentData.targetingRules.urlPatterns && experimentData.targetingRules.urlPatterns.length > 0 && (
                 <div>
-                  <Label className="text-xs text-neutral-500">URL Target</Label>
+                  <Label className="text-xs text-neutral-500">URL Patterns</Label>
                   <p className="text-sm font-medium font-mono">
-                    {experimentData.targetingRules.urlMatch}
+                    {experimentData.targetingRules.urlPatterns.join(", ")}
                   </p>
                 </div>
               )}
