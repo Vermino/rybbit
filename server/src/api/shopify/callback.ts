@@ -27,7 +27,8 @@ interface ShopifyShopInfo {
 
 export async function shopifyCallback(req: FastifyRequest, res: FastifyReply) {
   try {
-    const { code, shop, state, hmac } = req.query as { code?: string; shop?: string; state?: string; hmac?: string };
+    const queryParams = req.query as Record<string, string | undefined>;
+    const { code, shop, state, hmac } = queryParams;
 
     if (!code || !shop || !state) {
       return res.status(400).send("Missing required OAuth parameters");
@@ -35,7 +36,7 @@ export async function shopifyCallback(req: FastifyRequest, res: FastifyReply) {
 
     // Verify HMAC to ensure request is from Shopify
     if (hmac && typeof hmac === "string") {
-      const params = { ...req.query } as Record<string, string>;
+      const params = { ...queryParams };
       delete params.hmac;
       const message = Object.keys(params)
         .sort()
