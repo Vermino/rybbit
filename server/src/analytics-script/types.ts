@@ -14,6 +14,11 @@ export interface ScriptConfig {
   sessionReplayMaskTextSelectors: string[];
   skipPatterns: string[];
   maskPatterns: string[];
+  // Advanced tracking options
+  scrollTracking?: boolean;
+  formTracking?: boolean;
+  visibilityTracking?: boolean;
+  timerEvents?: Array<{ seconds: number; eventName: string }>;
 }
 
 export interface BasePayload {
@@ -27,10 +32,11 @@ export interface BasePayload {
   page_title: string;
   referrer: string;
   user_id?: string;
+  experiments?: Record<string, string>; // e.g., { "exp_1": "variant-a", "exp_2": "control" }
 }
 
 export interface TrackingPayload extends BasePayload {
-  type: "pageview" | "custom_event" | "outbound" | "performance" | "error";
+  type: "pageview" | "custom_event" | "outbound" | "performance" | "error" | "ecommerce";
   event_name?: string;
   properties?: string;
   // Web vitals metrics
@@ -67,6 +73,29 @@ export interface RybbitAPI {
   startSessionReplay: () => void;
   stopSessionReplay: () => void;
   isSessionReplayActive: () => boolean;
+  // E-commerce tracking
+  viewProduct: (product: ProductData) => void;
+  addToCart: (product: ProductData, quantity?: number) => void;
+  purchase: (transaction: TransactionData) => void;
+}
+
+// E-commerce types
+export interface ProductData {
+  id: string;
+  name: string;
+  price: number;
+  category?: string;
+  brand?: string;
+  variant?: string;
+}
+
+export interface TransactionData {
+  transaction_id: string;
+  value: number;
+  currency?: string;
+  tax?: number;
+  shipping?: number;
+  items: Array<ProductData & { quantity: number }>;
 }
 
 export interface SessionReplayEvent {

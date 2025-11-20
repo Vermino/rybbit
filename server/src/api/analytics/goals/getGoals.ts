@@ -13,10 +13,18 @@ interface GoalWithConversions {
   name: string | null;
   goalType: string;
   config: any;
+  trackValue: boolean | null;
+  valueSource: string | null;
+  fixedValue: number | null;
+  valuePropertyKey: string | null;
+  currency: string | null;
+  conversionWindow: number | null;
   createdAt: string | null;
   total_conversions: number;
   total_sessions: number;
   conversion_rate: number;
+  total_value: number;
+  average_value: number;
 }
 
 interface GetGoalsResponse {
@@ -159,6 +167,19 @@ export async function getGoals(
             NULL
           )) AS goal_${goal.goalId}_conversions
         `);
+
+        // Add value calculation if tracking value
+        if (goal.trackValue && goal.valueSource === 'fixed' && goal.fixedValue) {
+          conditionalClauses.push(`
+            SUM(IF(
+              type = 'pageview' AND match(pathname, ${SqlString.escape(regex)}),
+              ${goal.fixedValue},
+              0
+            )) AS goal_${goal.goalId}_value
+          `);
+        } else {
+          conditionalClauses.push(`0 AS goal_${goal.goalId}_value`);
+        }
       } else if (goal.goalType === "event") {
         const eventName = goal.config.eventName;
         const eventPropertyKey = goal.config.eventPropertyKey;
@@ -194,6 +215,31 @@ export async function getGoals(
             NULL
           )) AS goal_${goal.goalId}_conversions
         `);
+
+        // Add value calculation if tracking value
+        if (goal.trackValue) {
+          if (goal.valueSource === 'fixed' && goal.fixedValue) {
+            conditionalClauses.push(`
+              SUM(IF(
+                ${eventClause},
+                ${goal.fixedValue},
+                0
+              )) AS goal_${goal.goalId}_value
+            `);
+          } else if (goal.valueSource === 'property' && goal.valuePropertyKey) {
+            conditionalClauses.push(`
+              SUM(IF(
+                ${eventClause},
+                toFloat64OrNull(props.${SqlString.escapeId(goal.valuePropertyKey)}),
+                0
+              )) AS goal_${goal.goalId}_value
+            `);
+          } else {
+            conditionalClauses.push(`0 AS goal_${goal.goalId}_value`);
+          }
+        } else {
+          conditionalClauses.push(`0 AS goal_${goal.goalId}_value`);
+        }
       }
     }
 
@@ -204,6 +250,8 @@ export async function getGoals(
         total_conversions: 0,
         total_sessions: totalSessions,
         conversion_rate: 0,
+        total_value: 0,
+        average_value: 0,
       }));
 
       return reply.send({
@@ -240,13 +288,17 @@ export async function getGoals(
     // Combine goals data with conversion metrics
     const goalsWithConversions: GoalWithConversions[] = siteGoals.map(goal => {
       const totalConversions = conversions[`goal_${goal.goalId}_conversions`] || 0;
+      const totalValue = conversions[`goal_${goal.goalId}_value`] || 0;
       const conversionRate = totalSessions > 0 ? totalConversions / totalSessions : 0;
+      const averageValue = totalConversions > 0 ? totalValue / totalConversions : 0;
 
       return {
         ...goal,
         total_conversions: totalConversions,
         total_sessions: totalSessions,
         conversion_rate: conversionRate,
+        total_value: totalValue,
+        average_value: averageValue,
       };
     });
 

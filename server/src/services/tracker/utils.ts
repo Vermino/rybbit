@@ -91,7 +91,7 @@ export function clearSelfReferrer(referrer: string, hostname: string): string {
 // Create base tracking payload from request
 export async function createBasePayload(
   request: FastifyRequest,
-  eventType: "pageview" | "custom_event" | "performance" | "error" | "outbound" = "pageview",
+  eventType: "pageview" | "custom_event" | "performance" | "error" | "outbound" | "ecommerce" = "pageview",
   validatedBody: ValidatedTrackingPayload,
   siteConfiguration: SiteConfigData
 ): Promise<TotalTrackingPayload> {

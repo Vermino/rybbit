@@ -28,6 +28,7 @@ export const trackingPayloadSchema = z.discriminatedUnion("type", [
       api_key: z.string().max(35).optional(), // rb_ prefix + 32 hex chars
       ip_address: z.string().ip().optional(), // Custom IP for geolocation
       user_agent: z.string().max(512).optional(), // Custom user agent
+      experiments: z.record(z.string(), z.string()).optional(), // Experiment variant assignments
     })
     .strict(),
   z
@@ -62,6 +63,7 @@ export const trackingPayloadSchema = z.discriminatedUnion("type", [
       api_key: z.string().max(35).optional(), // rb_ prefix + 32 hex chars
       ip_address: z.string().ip().optional(), // Custom IP for geolocation
       user_agent: z.string().max(512).optional(), // Custom user agent
+      experiments: z.record(z.string(), z.string()).optional(), // Experiment variant assignments
     })
     .strict(),
   z
@@ -88,6 +90,7 @@ export const trackingPayloadSchema = z.discriminatedUnion("type", [
       inp: z.number().min(0).nullable().optional(),
       fcp: z.number().min(0).nullable().optional(),
       ttfb: z.number().min(0).nullable().optional(),
+      experiments: z.record(z.string(), z.string()).optional(), // Experiment variant assignments
     })
     .strict(),
   z
@@ -135,6 +138,7 @@ export const trackingPayloadSchema = z.discriminatedUnion("type", [
       api_key: z.string().max(35).optional(), // rb_ prefix + 32 hex chars
       ip_address: z.string().ip().optional(), // Custom IP for geolocation
       user_agent: z.string().max(512).optional(), // Custom user agent
+      experiments: z.record(z.string(), z.string()).optional(), // Experiment variant assignments
     })
     .strict(),
   z
@@ -186,6 +190,77 @@ export const trackingPayloadSchema = z.discriminatedUnion("type", [
               "Properties must be valid JSON with error fields (message, stack, fileName, lineNumber, columnNumber)",
           }
         ),
+      user_id: z.string().max(255).optional(),
+      api_key: z.string().max(35).optional(), // rb_ prefix + 32 hex chars
+      ip_address: z.string().ip().optional(), // Custom IP for geolocation
+      user_agent: z.string().max(512).optional(), // Custom user agent
+      experiments: z.record(z.string(), z.string()).optional(), // Experiment variant assignments
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("ecommerce"),
+      site_id: z.string().min(1),
+      hostname: z.string().max(253).optional(),
+      pathname: z.string().max(2048).optional(),
+      querystring: z.string().max(2048).optional(),
+      screenWidth: z.number().int().positive().optional(),
+      screenHeight: z.number().int().positive().optional(),
+      language: z.string().max(35).optional(),
+      page_title: z.string().max(512).optional(),
+      referrer: z.string().max(2048).optional(),
+      event_name: z
+        .enum([
+          "view_item",
+          "add_to_cart",
+          "remove_from_cart",
+          "begin_checkout",
+          "add_payment_info",
+          "add_shipping_info",
+          "purchase",
+          "refund",
+        ])
+        .optional(),
+      properties: z
+        .string()
+        .max(8192) // Larger limit for e-commerce data with items
+        .refine(
+          val => {
+            try {
+              const parsed = JSON.parse(val);
+              // Validate e-commerce properties
+              if (parsed.value !== undefined && typeof parsed.value !== "number") return false;
+              if (parsed.currency !== undefined && typeof parsed.currency !== "string") return false;
+              if (parsed.transaction_id !== undefined && typeof parsed.transaction_id !== "string") return false;
+              if (parsed.tax !== undefined && typeof parsed.tax !== "number") return false;
+              if (parsed.shipping !== undefined && typeof parsed.shipping !== "number") return false;
+
+              // Validate items array if present
+              if (parsed.items !== undefined) {
+                if (!Array.isArray(parsed.items)) return false;
+                for (const item of parsed.items) {
+                  if (typeof item.item_id !== "string") return false;
+                  if (typeof item.item_name !== "string") return false;
+                  if (typeof item.price !== "number") return false;
+                  if (typeof item.quantity !== "number") return false;
+                  // Optional fields
+                  if (item.item_category !== undefined && typeof item.item_category !== "string") return false;
+                  if (item.item_variant !== undefined && typeof item.item_variant !== "string") return false;
+                  if (item.item_brand !== undefined && typeof item.item_brand !== "string") return false;
+                }
+              }
+
+              return true;
+            } catch (e) {
+              return false;
+            }
+          },
+          {
+            message:
+              "Properties must be valid JSON with e-commerce fields (value, currency, transaction_id, items, etc.)",
+          }
+        )
+        .optional(),
       user_id: z.string().max(255).optional(),
       api_key: z.string().max(35).optional(), // rb_ prefix + 32 hex chars
       ip_address: z.string().ip().optional(), // Custom IP for geolocation

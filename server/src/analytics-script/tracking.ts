@@ -1,4 +1,4 @@
-import { BasePayload, ScriptConfig, TrackingPayload, WebVitalsData, SessionReplayBatch } from "./types.js";
+import { BasePayload, ScriptConfig, TrackingPayload, WebVitalsData, SessionReplayBatch, ProductData, TransactionData } from "./types.js";
 import { findMatchingPattern } from "./utils.js";
 import { SessionReplayRecorder } from "./sessionReplay.js";
 
@@ -6,6 +6,9 @@ export class Tracker {
   private config: ScriptConfig;
   private customUserId: string | null = null;
   private sessionReplayRecorder?: SessionReplayRecorder;
+  private scrollDepthFired: Set<number> = new Set();
+  private visibilityObserver?: IntersectionObserver;
+  private experimentData: Record<string, string> = {};
 
   constructor(config: ScriptConfig) {
     this.config = config;
@@ -14,6 +17,27 @@ export class Tracker {
     if (config.enableSessionReplay) {
       this.initializeSessionReplay();
     }
+
+    // Initialize advanced tracking features
+    if (config.scrollTracking) {
+      this.initScrollTracking();
+    }
+    if (config.formTracking) {
+      this.initFormTracking();
+    }
+    if (config.visibilityTracking) {
+      this.initVisibilityTracking();
+    }
+    if (config.timerEvents && config.timerEvents.length > 0) {
+      this.initTimerEvents();
+    }
+  }
+
+  /**
+   * Set experiment variant assignments to include in tracking data
+   */
+  setExperimentData(data: Record<string, string>): void {
+    this.experimentData = data;
   }
 
   private loadUserId(): void {
@@ -91,6 +115,11 @@ export class Tracker {
       payload.user_id = this.customUserId;
     }
 
+    // Include experiment variant assignments
+    if (Object.keys(this.experimentData).length > 0) {
+      payload.experiments = this.experimentData;
+    }
+
     return payload;
   }
 
@@ -126,7 +155,7 @@ export class Tracker {
       type: eventType,
       event_name: eventName,
       properties:
-        eventType === "custom_event" || eventType === "outbound" || eventType === "error"
+        eventType === "custom_event" || eventType === "outbound" || eventType === "error" || eventType === "ecommerce"
           ? JSON.stringify(properties)
           : undefined,
     };
@@ -291,5 +320,127 @@ export class Tracker {
     if (this.sessionReplayRecorder) {
       this.sessionReplayRecorder.cleanup();
     }
+    if (this.visibilityObserver) {
+      this.visibilityObserver.disconnect();
+    }
+  }
+
+  // Advanced Tracking Methods
+
+  private initScrollTracking(): void {
+    const thresholds = [25, 50, 75, 100];
+
+    const checkScroll = () => {
+      const scrollPercentage = (window.scrollY + window.innerHeight) /
+                               document.documentElement.scrollHeight * 100;
+
+      thresholds.forEach(threshold => {
+        if (scrollPercentage >= threshold && !this.scrollDepthFired.has(threshold)) {
+          this.scrollDepthFired.add(threshold);
+          this.trackEvent('scroll_depth', {
+            depth_percentage: threshold,
+            depth_pixels: window.scrollY
+          });
+        }
+      });
+    };
+
+    // Simple throttle
+    let scrollTimeout: any;
+    const throttledCheckScroll = () => {
+      if (scrollTimeout) return;
+      scrollTimeout = setTimeout(() => {
+        checkScroll();
+        scrollTimeout = null;
+      }, 500);
+    };
+
+    window.addEventListener('scroll', throttledCheckScroll, { passive: true });
+  }
+
+  private initFormTracking(): void {
+    document.addEventListener('submit', (e) => {
+      const form = e.target as HTMLFormElement;
+      const formId = form.id || form.name || 'unknown';
+      const formAction = form.action;
+
+      this.trackEvent('form_submission', {
+        form_id: formId,
+        form_action: formAction,
+        form_method: form.method
+      });
+    }, true);
+  }
+
+  private initVisibilityTracking(): void {
+    this.visibilityObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const element = entry.target as HTMLElement;
+          const eventName = element.dataset.rybbitTrackVisibility;
+
+          if (eventName) {
+            this.trackEvent(eventName, {
+              element_id: element.id,
+              element_class: element.className
+            });
+            this.visibilityObserver?.unobserve(element);
+          }
+        }
+      });
+    }, { threshold: 0.5 });
+
+    // Observe all elements with data-rybbit-track-visibility
+    document.querySelectorAll('[data-rybbit-track-visibility]')
+      .forEach(el => this.visibilityObserver?.observe(el));
+  }
+
+  private initTimerEvents(): void {
+    const timers = this.config.timerEvents || [];
+
+    timers.forEach(({ seconds, eventName }) => {
+      setTimeout(() => {
+        this.trackEvent(eventName, {
+          time_on_page: seconds,
+          still_on_page: true
+        });
+      }, seconds * 1000);
+    });
+  }
+
+  // E-commerce Tracking Methods
+
+  viewProduct(product: ProductData): void {
+    this.track('ecommerce', 'view_item', {
+      product_id: product.id,
+      product_name: product.name,
+      product_price: product.price,
+      product_category: product.category,
+      product_brand: product.brand,
+      product_variant: product.variant,
+    });
+  }
+
+  addToCart(product: ProductData, quantity: number = 1): void {
+    this.track('ecommerce', 'add_to_cart', {
+      product_id: product.id,
+      product_name: product.name,
+      product_price: product.price,
+      product_category: product.category,
+      product_brand: product.brand,
+      product_variant: product.variant,
+      quantity: quantity,
+    });
+  }
+
+  purchase(transaction: TransactionData): void {
+    this.track('ecommerce', 'purchase', {
+      transaction_id: transaction.transaction_id,
+      value: transaction.value,
+      currency: transaction.currency || 'USD',
+      tax: transaction.tax,
+      shipping: transaction.shipping,
+      items: transaction.items,
+    });
   }
 }

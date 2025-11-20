@@ -1,6 +1,7 @@
 import { parseScriptConfig } from "./config.js";
 import { Tracker } from "./tracking.js";
 import { WebVitalsCollector } from "./webVitals.js";
+import { ExperimentManager } from "./experiments.js";
 import { debounce, isOutboundLink } from "./utils.js";
 import { RybbitAPI, WebVitalsData, ErrorProperties } from "./types.js";
 
@@ -32,6 +33,10 @@ declare global {
       startSessionReplay: () => {},
       stopSessionReplay: () => {},
       isSessionReplayActive: () => false,
+      // E-commerce no-ops
+      viewProduct: () => {},
+      addToCart: () => {},
+      purchase: () => {},
     };
     return;
   }
@@ -44,6 +49,13 @@ declare global {
 
   // Initialize tracker
   const tracker = new Tracker(config);
+
+  // Initialize experiment manager
+  const experimentManager = new ExperimentManager(config);
+  await experimentManager.initialize();
+
+  // Pass experiment assignments to tracker
+  tracker.setExperimentData(experimentManager.getActiveAssignments());
 
   // Initialize web vitals if enabled
   if (config.enableWebVitals) {
@@ -153,6 +165,10 @@ declare global {
     startSessionReplay: () => tracker.startSessionReplay(),
     stopSessionReplay: () => tracker.stopSessionReplay(),
     isSessionReplayActive: () => tracker.isSessionReplayActive(),
+    // E-commerce tracking
+    viewProduct: (product) => tracker.viewProduct(product),
+    addToCart: (product, quantity) => tracker.addToCart(product, quantity),
+    purchase: (transaction) => tracker.purchase(transaction),
   };
 
   // Initialize

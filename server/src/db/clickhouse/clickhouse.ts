@@ -58,7 +58,8 @@ export const initializeClickhouse = async () => {
         ADD COLUMN IF NOT EXISTS fcp Nullable(Float64),
         ADD COLUMN IF NOT EXISTS ttfb Nullable(Float64),
         ADD COLUMN IF NOT EXISTS ip Nullable(String),
-        ADD COLUMN IF NOT EXISTS timezone LowCardinality(String) DEFAULT ''
+        ADD COLUMN IF NOT EXISTS timezone LowCardinality(String) DEFAULT '',
+        ADD COLUMN IF NOT EXISTS experiments Map(String, String) DEFAULT map()
     `,
   });
 
@@ -235,4 +236,89 @@ export const initializeClickhouse = async () => {
       `,
     });
   }
+
+<<<<<<< HEAD
+  // Create e-commerce events materialized view
+  await clickhouse.exec({
+    query: `
+      CREATE TABLE IF NOT EXISTS ecommerce_events_mv_target (
+        site_id UInt16,
+        timestamp DateTime,
+        session_id String,
+        user_id String,
+        event_type LowCardinality(String),
+        transaction_id String,
+        revenue Float64,
+        currency String,
+        items String
+      )
+      ENGINE = MergeTree()
+      PARTITION BY toYYYYMM(timestamp)
+      ORDER BY (site_id, timestamp, transaction_id)
+    `,
+  });
+
+  await clickhouse.exec({
+    query: `
+      CREATE MATERIALIZED VIEW IF NOT EXISTS ecommerce_events_mv
+      TO ecommerce_events_mv_target
+      AS SELECT
+        site_id,
+        timestamp,
+        session_id,
+        user_id,
+        event_name as event_type,
+        toString(props.transaction_id) as transaction_id,
+        toFloat64OrNull(props.value) as revenue,
+        toString(props.currency) as currency,
+        toString(props.items) as items
+      FROM events
+      WHERE type = 'custom_event'
+        AND event_name IN ('purchase', 'refund', 'add_to_cart', 'begin_checkout')
+=======
+  // Create experiment assignments table (A/B Testing)
+  await clickhouse.exec({
+    query: `
+      CREATE TABLE IF NOT EXISTS experiment_assignments (
+        site_id UInt16,
+        experiment_id String,
+        visitor_id String,
+        session_id String,
+        variant_id String,
+        variant_name String,
+        timestamp DateTime,
+        user_properties String, -- JSON string with user properties at assignment time
+        device_type LowCardinality(String),
+        country LowCardinality(FixedString(2)),
+        browser LowCardinality(String),
+        operating_system LowCardinality(String)
+      )
+      ENGINE = MergeTree()
+      PARTITION BY toYYYYMM(timestamp)
+      ORDER BY (site_id, experiment_id, timestamp)
+    `,
+  });
+
+  // Create experiment conversions table
+  await clickhouse.exec({
+    query: `
+      CREATE TABLE IF NOT EXISTS experiment_conversions (
+        site_id UInt16,
+        experiment_id String,
+        variant_id String,
+        variant_name String,
+        visitor_id String,
+        session_id String,
+        goal_id UInt32,
+        goal_name String,
+        conversion_value Nullable(Float64), -- For revenue tracking
+        timestamp DateTime,
+        properties String -- JSON string with additional properties
+      )
+      ENGINE = MergeTree()
+      PARTITION BY toYYYYMM(timestamp)
+      ORDER BY (site_id, experiment_id, timestamp)
+>>>>>>> 3153649b
+    `,
+  });
 };

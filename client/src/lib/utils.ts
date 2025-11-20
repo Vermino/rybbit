@@ -11,6 +11,23 @@ export const formatter = Intl.NumberFormat(userLocale, {
   notation: "compact",
 }).format;
 
+export function formatCurrency(value: number, currency: string = "USD"): string {
+  return new Intl.NumberFormat(userLocale, {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+export function formatPercentage(value: number): string {
+  return new Intl.NumberFormat(userLocale, {
+    style: "percent",
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
 export function formatSecondsAsMinutesAndSeconds(value: number) {
   const duration = Duration.fromMillis(value * 1000);
   const hours = Math.floor(duration.as("hours"));

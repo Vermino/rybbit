@@ -43,6 +43,8 @@ import { updateGoal } from "./api/analytics/goals/updateGoal.js";
 import { getPerformanceByDimension } from "./api/analytics/performance/getPerformanceByDimension.js";
 import { getPerformanceOverview } from "./api/analytics/performance/getPerformanceOverview.js";
 import { getPerformanceTimeSeries } from "./api/analytics/performance/getPerformanceTimeSeries.js";
+import { getEcommerceOverview } from "./api/analytics/ecommerce/getEcommerceOverview.js";
+import { getProductPerformance } from "./api/analytics/ecommerce/getProductPerformance.js";
 import { getConfig } from "./api/getConfig.js";
 import { getSessionReplayEvents } from "./api/sessionReplay/getSessionReplayEvents.js";
 import { getSessionReplays } from "./api/sessionReplay/getSessionReplays.js";
@@ -90,6 +92,19 @@ import { getGSCStatus } from "./api/gsc/status.js";
 import { disconnectGSC } from "./api/gsc/disconnect.js";
 import { getGSCData } from "./api/gsc/getData.js";
 import { selectGSCProperty } from "./api/gsc/selectProperty.js";
+import { createExperiment } from "./api/experiments/createExperiment.js";
+import { getExperiments } from "./api/experiments/getExperiments.js";
+import { getExperiment } from "./api/experiments/getExperiment.js";
+import { getExperimentStats } from "./api/experiments/getExperimentStats.js";
+import { getActiveExperiments } from "./api/experiments/getActiveExperiments.js";
+import { duplicateExperiment } from "./api/experiments/duplicateExperiment.js";
+import { updateExperiment } from "./api/experiments/updateExperiment.js";
+import { updateExperimentStatus } from "./api/experiments/updateExperimentStatus.js";
+import { deleteExperiment } from "./api/experiments/deleteExperiment.js";
+import { getIntegrations } from "./api/integrations/getIntegrations.js";
+import { getSiteIntegrations } from "./api/integrations/getSiteIntegrations.js";
+import { installIntegration } from "./api/integrations/installIntegration.js";
+import { uninstallIntegration } from "./api/integrations/uninstallIntegration.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -353,6 +368,10 @@ server.get("/api/performance/overview/:site", getPerformanceOverview);
 server.get("/api/performance/time-series/:site", getPerformanceTimeSeries);
 server.get("/api/performance/by-dimension/:site", getPerformanceByDimension);
 
+// E-commerce Analytics
+server.get("/api/ecommerce/overview/:site", getEcommerceOverview);
+server.get("/api/ecommerce/products/:site", getProductPerformance);
+
 // Session Replay
 server.post("/api/session-replay/record/:site", recordSessionReplay);
 server.get("/api/session-replay/list/:site", getSessionReplays);
@@ -400,6 +419,23 @@ server.get("/api/shopify/status/:siteId", getShopifyStatus);
 server.delete("/api/shopify/disconnect/:siteId", disconnectShopify);
 server.post("/api/shopify/webhooks/orders/create", handleOrderCreated);
 server.post("/api/shopify/webhooks/app/uninstalled", handleAppUninstalled);
+
+// A/B TESTING & EXPERIMENTS
+server.post("/api/experiments", createExperiment);
+server.get("/api/experiments", getExperiments);
+server.get("/api/experiments/active/:siteId", getActiveExperiments); // Public endpoint for client-side script
+server.get("/api/experiments/:experimentId", getExperiment);
+server.get("/api/experiments/:experimentId/stats", getExperimentStats);
+server.post("/api/experiments/:experimentId/duplicate", duplicateExperiment);
+server.put("/api/experiments/:experimentId", updateExperiment);
+server.patch("/api/experiments/status", updateExperimentStatus);
+server.delete("/api/experiments/:experimentId", deleteExperiment);
+
+// INTEGRATIONS
+server.get("/api/integrations", getIntegrations);
+server.get("/api/integrations/site", getSiteIntegrations);
+server.post("/api/integrations/install", installIntegration);
+server.delete("/api/integrations/:integrationId", uninstallIntegration);
 
 // UPTIME MONITORING
 // Only register uptime routes when IS_CLOUD is true (Redis is available)
