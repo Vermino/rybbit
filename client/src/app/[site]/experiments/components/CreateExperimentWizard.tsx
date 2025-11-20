@@ -24,6 +24,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Plus, Trash2, ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { TargetingBuilder } from "./TargetingBuilder";
 
 interface Variant {
   id: string;
@@ -44,9 +45,10 @@ interface ExperimentData {
   targetUrl?: string; // For visual tests - the page to modify
   variants: Variant[];
   targetingRules: {
-    urlMatch?: string;
-    devices?: string[];
+    urlPatterns?: string[];
+    deviceTypes?: ("desktop" | "mobile" | "tablet")[];
     countries?: string[];
+    newVisitors?: boolean;
   };
   primaryGoalId?: number;
   trafficAllocation: number;
@@ -518,30 +520,9 @@ export function CreateExperimentWizard({
         return (
           <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-medium mb-2">Audience Targeting</h3>
+              <h3 className="text-sm font-medium mb-2">Audience Targeting & Traffic</h3>
               <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">
-                Define who will see this experiment (optional)
-              </p>
-            </div>
-
-            <div>
-              <Label htmlFor="urlMatch">URL Targeting</Label>
-              <Input
-                id="urlMatch"
-                placeholder="e.g., /products/* or leave empty for all pages"
-                value={experimentData.targetingRules.urlMatch || ""}
-                onChange={(e) =>
-                  setExperimentData({
-                    ...experimentData,
-                    targetingRules: {
-                      ...experimentData.targetingRules,
-                      urlMatch: e.target.value,
-                    },
-                  })
-                }
-              />
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                Use * as wildcard. Leave empty to target all pages.
+                Define who will see this experiment and how much traffic to allocate
               </p>
             </div>
 
@@ -567,6 +548,13 @@ export function CreateExperimentWizard({
                 Start with a smaller percentage and increase as you gain confidence
               </p>
             </div>
+
+            <TargetingBuilder
+              value={experimentData.targetingRules}
+              onChange={(rules) =>
+                setExperimentData({ ...experimentData, targetingRules: rules })
+              }
+            />
           </div>
         );
 
