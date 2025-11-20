@@ -28,6 +28,7 @@ export const trackingPayloadSchema = z.discriminatedUnion("type", [
       api_key: z.string().max(35).optional(), // rb_ prefix + 32 hex chars
       ip_address: z.string().ip().optional(), // Custom IP for geolocation
       user_agent: z.string().max(512).optional(), // Custom user agent
+      experiments: z.record(z.string(), z.string()).optional(), // Experiment variant assignments
     })
     .strict(),
   z
@@ -62,6 +63,7 @@ export const trackingPayloadSchema = z.discriminatedUnion("type", [
       api_key: z.string().max(35).optional(), // rb_ prefix + 32 hex chars
       ip_address: z.string().ip().optional(), // Custom IP for geolocation
       user_agent: z.string().max(512).optional(), // Custom user agent
+      experiments: z.record(z.string(), z.string()).optional(), // Experiment variant assignments
     })
     .strict(),
   z
@@ -88,6 +90,7 @@ export const trackingPayloadSchema = z.discriminatedUnion("type", [
       inp: z.number().min(0).nullable().optional(),
       fcp: z.number().min(0).nullable().optional(),
       ttfb: z.number().min(0).nullable().optional(),
+      experiments: z.record(z.string(), z.string()).optional(), // Experiment variant assignments
     })
     .strict(),
   z
@@ -135,6 +138,7 @@ export const trackingPayloadSchema = z.discriminatedUnion("type", [
       api_key: z.string().max(35).optional(), // rb_ prefix + 32 hex chars
       ip_address: z.string().ip().optional(), // Custom IP for geolocation
       user_agent: z.string().max(512).optional(), // Custom user agent
+      experiments: z.record(z.string(), z.string()).optional(), // Experiment variant assignments
     })
     .strict(),
   z
@@ -190,6 +194,7 @@ export const trackingPayloadSchema = z.discriminatedUnion("type", [
       api_key: z.string().max(35).optional(), // rb_ prefix + 32 hex chars
       ip_address: z.string().ip().optional(), // Custom IP for geolocation
       user_agent: z.string().max(512).optional(), // Custom user agent
+      experiments: z.record(z.string(), z.string()).optional(), // Experiment variant assignments
     })
     .strict(),
 ]);
