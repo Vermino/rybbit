@@ -587,7 +587,8 @@ export const experiments = pgTable("experiments", {
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
   startedAt: timestamp("started_at", { mode: "string" }),
-  endedAt: timestamp("ended_at", { mode: "string" }),
+  pausedAt: timestamp("paused_at", { mode: "string" }),
+  completedAt: timestamp("completed_at", { mode: "string" }),
 });
 
 // ==================== INTEGRATIONS ====================

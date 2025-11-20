@@ -49,8 +49,12 @@ export async function updateExperimentStatus(
       updateData.startedAt = new Date().toISOString();
     }
 
-    if (status === "completed" && !experiment[0].endedAt) {
-      updateData.endedAt = new Date().toISOString();
+    if (status === "completed" && !experiment[0].completedAt) {
+      updateData.completedAt = new Date().toISOString();
+    }
+
+    if (status === "paused" && !experiment[0].pausedAt) {
+      updateData.pausedAt = new Date().toISOString();
     }
 
     await db
