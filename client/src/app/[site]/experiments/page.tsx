@@ -62,7 +62,7 @@ export default function ExperimentsPage() {
   });
 
   // Handle status change (play/pause)
-  const handleStatusChange = async (experimentId: string, newStatus: "running" | "paused") => {
+  const handleStatusChange = async (experimentId: number, newStatus: "running" | "paused") => {
     try {
       const response = await fetch(`${BACKEND_URL}/experiments/status`, {
         method: "PATCH",

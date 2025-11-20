@@ -14,12 +14,17 @@ export async function deleteExperiment(
 ) {
   try {
     const { experimentId } = request.params;
+    const experimentIdNum = parseInt(experimentId, 10);
+
+    if (isNaN(experimentIdNum)) {
+      return reply.status(400).send({ error: "Invalid experiment ID" });
+    }
 
     // Fetch experiment to check ownership
     const experiment = await db
       .select()
       .from(experiments)
-      .where(eq(experiments.id, experimentId))
+      .where(eq(experiments.id, experimentIdNum))
       .limit(1);
 
     if (!experiment || experiment.length === 0) {
@@ -40,7 +45,7 @@ export async function deleteExperiment(
     }
 
     // Delete experiment
-    await db.delete(experiments).where(eq(experiments.id, experimentId));
+    await db.delete(experiments).where(eq(experiments.id, experimentIdNum));
 
     return reply.status(200).send({
       success: true,

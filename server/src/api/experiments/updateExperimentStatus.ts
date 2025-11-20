@@ -6,7 +6,7 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 
 const updateStatusSchema = z.object({
-  experimentId: z.string(),
+  experimentId: z.number(),
   status: z.enum(["draft", "running", "paused", "completed"]),
 });
 
