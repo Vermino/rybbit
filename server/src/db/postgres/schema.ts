@@ -537,14 +537,14 @@ export const experiments = pgTable("experiments", {
   description: text("description"),
   hypothesis: text("hypothesis"),
   status: text("status").notNull().default("draft"), // 'draft', 'running', 'paused', 'completed'
-  type: text("type").notNull().default("feature_flag"), // 'feature_flag', 'url', 'visual'
+  type: text("experiment_type").notNull().default("feature_flag"), // 'feature_flag', 'url', 'visual'
 
   // URL configuration
   cloakedUrl: text("cloaked_url"), // For URL redirect tests - the URL visitors access
   targetUrl: text("target_url"), // For visual tests - the page to modify
 
   // Targeting & allocation
-  targetingRules: jsonb("targeting_rules")
+  targetingRules: jsonb("targeting")
     .notNull()
     .default({})
     .$type<{
