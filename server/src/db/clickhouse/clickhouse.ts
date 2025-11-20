@@ -237,7 +237,6 @@ export const initializeClickhouse = async () => {
     });
   }
 
-<<<<<<< HEAD
   // Create e-commerce events materialized view
   await clickhouse.exec({
     query: `
@@ -275,7 +274,9 @@ export const initializeClickhouse = async () => {
       FROM events
       WHERE type = 'custom_event'
         AND event_name IN ('purchase', 'refund', 'add_to_cart', 'begin_checkout')
-=======
+    `,
+  });
+
   // Create experiment assignments table (A/B Testing)
   await clickhouse.exec({
     query: `
@@ -318,7 +319,6 @@ export const initializeClickhouse = async () => {
       ENGINE = MergeTree()
       PARTITION BY toYYYYMM(timestamp)
       ORDER BY (site_id, experiment_id, timestamp)
->>>>>>> 3153649b
     `,
   });
 };
