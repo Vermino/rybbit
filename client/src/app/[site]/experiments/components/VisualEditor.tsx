@@ -148,84 +148,116 @@ export function VisualEditor({
 
     console.log("Visual Editor: Applying initial code", initialCode);
 
-    try {
-      // Parse the initialCode to extract changes
-      const parsedChanges: Record<string, any> = {};
+    // Wait for page to fully render before applying changes
+    // Some pages have dynamic content that loads after the iframe load event
+    const applyChangesWithRetry = (attempt = 0) => {
+      try {
+        // Parse the initialCode to extract changes
+        const parsedChanges: Record<string, any> = {};
 
-      // Match patterns like:
-      // document.querySelector('selector').style.property = 'value';
-      // document.querySelector('selector').textContent = 'value';
-      const styleRegex = /document\.querySelector\(['"](.+?)['"]\)\.style\.(\w+)\s*=\s*['"](.+?)['"]/g;
-      const textContentRegex = /document\.querySelector\(['"](.+?)['"]\)\.textContent\s*=\s*['"](.+?)['"]/g;
-      const innerHTMLRegex = /document\.querySelector\(['"](.+?)['"]\)\.innerHTML\s*=\s*['"](.+?)['"]/g;
+        // Match patterns like:
+        // document.querySelector('selector').style.property = 'value';
+        // document.querySelector('selector').textContent = 'value';
+        const styleRegex = /document\.querySelector\(['"](.+?)['"]\)\.style\.(\w+)\s*=\s*['"](.+?)['"]/g;
+        const textContentRegex = /document\.querySelector\(['"](.+?)['"]\)\.textContent\s*=\s*['"](.+?)['"]/g;
+        const innerHTMLRegex = /document\.querySelector\(['"](.+?)['"]\)\.innerHTML\s*=\s*['"](.+?)['"]/g;
 
-      let match;
+        let match;
+        let foundAnyElements = false;
 
-      // Parse style changes
-      while ((match = styleRegex.exec(initialCode)) !== null) {
-        const [, selector, property, value] = match;
-        if (!parsedChanges[selector]) {
-          parsedChanges[selector] = {};
+        // Parse style changes
+        styleRegex.lastIndex = 0; // Reset regex
+        while ((match = styleRegex.exec(initialCode)) !== null) {
+          const [, selector, property, value] = match;
+          if (!parsedChanges[selector]) {
+            parsedChanges[selector] = {};
+          }
+          parsedChanges[selector][property] = value;
+
+          // Apply to iframe - apply to ALL matching elements
+          const elements = iframeDoc.querySelectorAll(selector);
+          if (elements.length > 0) {
+            foundAnyElements = true;
+            console.log(`Visual Editor: Applying ${property}=${value} to selector "${selector}" (found ${elements.length} elements)`);
+            elements.forEach((el) => {
+              const htmlEl = el as HTMLElement;
+              (htmlEl.style as any)[property] = value;
+            });
+          } else {
+            console.warn(`Visual Editor: No elements found for selector "${selector}" (attempt ${attempt + 1})`);
+          }
         }
-        parsedChanges[selector][property] = value;
 
-        // Apply to iframe - apply to ALL matching elements
-        const elements = iframeDoc.querySelectorAll(selector);
-        console.log(`Visual Editor: Applying ${property}=${value} to selector "${selector}" (found ${elements.length} elements)`);
-        elements.forEach((el) => {
-          const htmlEl = el as HTMLElement;
-          (htmlEl.style as any)[property] = value;
-        });
-      }
+        // Parse textContent changes
+        textContentRegex.lastIndex = 0; // Reset regex
+        while ((match = textContentRegex.exec(initialCode)) !== null) {
+          const [, selector, value] = match;
+          if (!parsedChanges[selector]) {
+            parsedChanges[selector] = {};
+          }
+          parsedChanges[selector].textContent = value;
 
-      // Parse textContent changes
-      while ((match = textContentRegex.exec(initialCode)) !== null) {
-        const [, selector, value] = match;
-        if (!parsedChanges[selector]) {
-          parsedChanges[selector] = {};
+          // Apply to iframe - apply to ALL matching elements
+          const elements = iframeDoc.querySelectorAll(selector);
+          if (elements.length > 0) {
+            foundAnyElements = true;
+            console.log(`Visual Editor: Applying textContent="${value}" to selector "${selector}" (found ${elements.length} elements)`);
+            elements.forEach((el) => {
+              const htmlEl = el as HTMLElement;
+              htmlEl.textContent = value;
+            });
+          } else {
+            console.warn(`Visual Editor: No elements found for selector "${selector}" (attempt ${attempt + 1})`);
+          }
         }
-        parsedChanges[selector].textContent = value;
 
-        // Apply to iframe - apply to ALL matching elements
-        const elements = iframeDoc.querySelectorAll(selector);
-        console.log(`Visual Editor: Applying textContent="${value}" to selector "${selector}" (found ${elements.length} elements)`);
-        elements.forEach((el) => {
-          const htmlEl = el as HTMLElement;
-          htmlEl.textContent = value;
-        });
-      }
+        // Parse innerHTML changes
+        innerHTMLRegex.lastIndex = 0; // Reset regex
+        while ((match = innerHTMLRegex.exec(initialCode)) !== null) {
+          const [, selector, value] = match;
+          if (!parsedChanges[selector]) {
+            parsedChanges[selector] = {};
+          }
+          parsedChanges[selector].innerHTML = value;
 
-      // Parse innerHTML changes
-      while ((match = innerHTMLRegex.exec(initialCode)) !== null) {
-        const [, selector, value] = match;
-        if (!parsedChanges[selector]) {
-          parsedChanges[selector] = {};
+          // Apply to iframe - apply to ALL matching elements
+          const elements = iframeDoc.querySelectorAll(selector);
+          if (elements.length > 0) {
+            foundAnyElements = true;
+            console.log(`Visual Editor: Applying innerHTML to selector "${selector}" (found ${elements.length} elements)`);
+            elements.forEach((el) => {
+              const htmlEl = el as HTMLElement;
+              htmlEl.innerHTML = value;
+            });
+          } else {
+            console.warn(`Visual Editor: No elements found for selector "${selector}" (attempt ${attempt + 1})`);
+          }
         }
-        parsedChanges[selector].innerHTML = value;
 
-        // Apply to iframe - apply to ALL matching elements
-        const elements = iframeDoc.querySelectorAll(selector);
-        console.log(`Visual Editor: Applying innerHTML to selector "${selector}" (found ${elements.length} elements)`);
-        elements.forEach((el) => {
-          const htmlEl = el as HTMLElement;
-          htmlEl.innerHTML = value;
-        });
+        // Update state with parsed changes
+        setChanges(parsedChanges);
+
+        // Calculate and set change count
+        const totalChanges = Object.keys(parsedChanges).reduce(
+          (sum, sel) => sum + Object.keys(parsedChanges[sel]).length,
+          0
+        );
+        setChangeCount(totalChanges);
+
+        console.log("Visual Editor: Loaded existing changes", { parsedChanges, totalChanges, foundAnyElements });
+
+        // If no elements found and we haven't exceeded retry limit, try again
+        if (!foundAnyElements && attempt < 5) {
+          console.log(`Visual Editor: Retrying in ${500 * (attempt + 1)}ms...`);
+          setTimeout(() => applyChangesWithRetry(attempt + 1), 500 * (attempt + 1));
+        }
+      } catch (error) {
+        console.error("Visual Editor: Error parsing initial code", error);
       }
+    };
 
-      // Update state with parsed changes
-      setChanges(parsedChanges);
-
-      // Calculate and set change count
-      const totalChanges = Object.keys(parsedChanges).reduce(
-        (sum, sel) => sum + Object.keys(parsedChanges[sel]).length,
-        0
-      );
-      setChangeCount(totalChanges);
-
-      console.log("Visual Editor: Loaded existing changes", { parsedChanges, totalChanges });
-    } catch (error) {
-      console.error("Visual Editor: Error parsing initial code", error);
-    }
+    // Start with a 500ms delay to let the page render
+    setTimeout(() => applyChangesWithRetry(0), 500);
   }, [initialCode, iframeReady]);
 
   useEffect(() => {
