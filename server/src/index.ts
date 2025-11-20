@@ -94,6 +94,7 @@ import { createExperiment } from "./api/experiments/createExperiment.js";
 import { getExperiments } from "./api/experiments/getExperiments.js";
 import { getExperiment } from "./api/experiments/getExperiment.js";
 import { getActiveExperiments } from "./api/experiments/getActiveExperiments.js";
+import { duplicateExperiment } from "./api/experiments/duplicateExperiment.js";
 import { updateExperiment } from "./api/experiments/updateExperiment.js";
 import { updateExperimentStatus } from "./api/experiments/updateExperimentStatus.js";
 import { deleteExperiment } from "./api/experiments/deleteExperiment.js";
@@ -400,6 +401,7 @@ server.post("/api/experiments", createExperiment);
 server.get("/api/experiments", getExperiments);
 server.get("/api/experiments/:experimentId", getExperiment);
 server.get("/api/experiments/active/:siteId", getActiveExperiments); // Public endpoint for client-side script
+server.post("/api/experiments/:experimentId/duplicate", duplicateExperiment);
 server.put("/api/experiments/:experimentId", updateExperiment);
 server.patch("/api/experiments/status", updateExperimentStatus);
 server.delete("/api/experiments/:experimentId", deleteExperiment);

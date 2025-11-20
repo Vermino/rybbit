@@ -22,6 +22,7 @@ import {
   Clock,
   Link as LinkIcon,
   Copy,
+  MoreVertical,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -33,6 +34,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Experiment {
   id: number;
@@ -175,6 +182,28 @@ export default function ExperimentDetailPage() {
     });
   };
 
+  const handleDuplicate = async () => {
+    if (!experiment) return;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/experiments/${experiment.id}/duplicate`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Navigate to the new duplicated experiment
+        router.push(`/${site}/experiments/${data.experimentId}`);
+      } else {
+        alert("Failed to duplicate experiment");
+      }
+    } catch (error) {
+      console.error("Error duplicating experiment:", error);
+      alert("Failed to duplicate experiment");
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "running":
@@ -289,17 +318,31 @@ export default function ExperimentDetailPage() {
               Reopen as Draft
             </Button>
           )}
-          <Button variant="outline" size="icon">
-            <Edit className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setShowDeleteDialog(true)}
-            disabled={experiment.status === "running"}
-          >
-            <Trash2 className="w-4 h-4 text-red-600" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleDuplicate}>
+                <Copy className="w-4 h-4 mr-2" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setShowDeleteDialog(true)}
+                disabled={experiment.status === "running"}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
