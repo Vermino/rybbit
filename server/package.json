@@ -13,6 +13,7 @@
     "test:run": "vitest run",
     "test:watch": "vitest --watch",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
+    "migrate:experiments": "tsc && node dist/scripts/migrate-experiments.js",
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:push": "drizzle-kit push --config=drizzle.config.ts",
     "db:pull": "drizzle-kit pull --config=drizzle.config.ts",

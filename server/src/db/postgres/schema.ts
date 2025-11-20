@@ -534,3 +534,193 @@ export const gscConnections = pgTable("gsc_connections", {
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
 });
+
+// ==================== EXPERIMENTS (A/B TESTING) ====================
+
+// Experiments table - stores experiment configurations
+export const experiments = pgTable("experiments", {
+  id: serial("experiment_id").primaryKey(),
+  siteId: integer("site_id")
+    .notNull()
+    .references(() => sites.siteId, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  hypothesis: text("hypothesis"),
+  status: text("status").notNull().default("draft"), // 'draft', 'running', 'paused', 'completed'
+  type: text("experiment_type").notNull().default("feature_flag"), // 'feature_flag', 'url', 'visual'
+
+  // URL configuration
+  cloakedUrl: text("cloaked_url"), // For URL redirect tests - the URL visitors access
+  targetUrl: text("target_url"), // For visual tests - the page to modify
+
+  // Targeting & allocation
+  targetingRules: jsonb("targeting")
+    .notNull()
+    .default({})
+    .$type<{
+      urlPatterns?: string[]; // URL match patterns
+      deviceTypes?: ("desktop" | "mobile" | "tablet")[]; // Device targeting
+      countries?: string[]; // ISO country codes
+      newVisitors?: boolean; // Target only new vs returning
+      customProperties?: Array<{
+        key: string;
+        operator: "equals" | "not_equals" | "contains" | "greater_than" | "less_than";
+        value: string | number | boolean;
+      }>;
+    }>(),
+  trafficAllocation: integer("traffic_allocation").notNull().default(100), // % of users (0-100)
+
+  // Variants configuration
+  variants: jsonb("variants")
+    .notNull()
+    .$type<
+      Array<{
+        id: string;
+        name: string;
+        description?: string;
+        trafficWeight: number; // % allocation within experiment
+        isControl: boolean;
+        redirectUrl?: string; // For URL redirect tests
+        customCode?: string; // For visual tests (HTML/CSS/JS)
+        changes?: any; // Legacy field for visual editor changes
+      }>
+    >(),
+
+  // Goals
+  primaryGoalId: integer("primary_goal_id").references(() => goals.goalId, { onDelete: "set null" }),
+  secondaryGoalIds: jsonb("secondary_goal_ids").default([]).$type<number[]>(),
+
+  // Metadata
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
+  startedAt: timestamp("started_at", { mode: "string" }),
+  pausedAt: timestamp("paused_at", { mode: "string" }),
+  completedAt: timestamp("completed_at", { mode: "string" }),
+});
+
+// ==================== INTEGRATIONS ====================
+
+// Integrations catalog - available integrations
+export const integrations = pgTable("integrations", {
+  id: serial("id").primaryKey().notNull(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  iconUrl: text("icon_url"),
+  category: text("category").notNull(), // 'ecommerce', 'crm', 'marketing', 'communication', 'other'
+  status: text("status").notNull().default("active"), // 'active', 'beta', 'deprecated'
+  authType: text("auth_type").notNull(), // 'oauth2', 'api_key', 'webhook', 'none'
+
+  // Configuration schema (defines required fields for setup)
+  configSchema: jsonb("config_schema")
+    .notNull()
+    .default({})
+    .$type<{
+      fields?: Array<{
+        key: string;
+        label: string;
+        type: "text" | "password" | "url" | "select" | "boolean";
+        required: boolean;
+        placeholder?: string;
+        options?: Array<{ label: string; value: string }>;
+      }>;
+    }>(),
+
+  // Integration capabilities
+  capabilities: jsonb("capabilities").notNull().default([]).$type<string[]>(), // ['revenue_tracking', 'event_sync', 'user_sync']
+
+  // OAuth configuration (if authType is 'oauth2')
+  oauthConfig: jsonb("oauth_config").$type<{
+    authorizeUrl?: string;
+    tokenUrl?: string;
+    scopes?: string[];
+    clientId?: string; // For official integrations only
+  }>(),
+
+  // Developer info (for 3rd-party integrations)
+  developerId: text("developer_id").references(() => user.id, { onDelete: "set null" }),
+  isOfficial: boolean("is_official").default(true).notNull(),
+
+  // Documentation
+  docsUrl: text("docs_url"),
+
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
+});
+
+// Site integrations - installed integrations per site
+export const siteIntegrations = pgTable("site_integrations", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => `si_${sql`encode(gen_random_bytes(12), 'hex')`.toString()}`),
+  siteId: integer("site_id")
+    .notNull()
+    .references(() => sites.siteId, { onDelete: "cascade" }),
+  integrationId: integer("integration_id")
+    .notNull()
+    .references(() => integrations.id, { onDelete: "cascade" }),
+
+  status: text("status").notNull().default("active"), // 'active', 'paused', 'error'
+
+  // Encrypted configuration (API keys, settings)
+  config: jsonb("config").notNull().default({}), // Should be encrypted in production
+  lastSyncAt: timestamp("last_sync_at", { mode: "string" }),
+  lastError: text("last_error"),
+  syncFrequency: text("sync_frequency").default("hourly"), // 'realtime', 'hourly', 'daily'
+
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
+});
+
+// OAuth tokens for integrations (separate for security)
+export const integrationOauthTokens = pgTable("integration_oauth_tokens", {
+  id: serial("id").primaryKey().notNull(),
+  siteIntegrationId: text("site_integration_id")
+    .notNull()
+    .references(() => siteIntegrations.id, { onDelete: "cascade" }),
+
+  // Encrypted tokens
+  accessToken: text("access_token").notNull(), // Should be encrypted
+  refreshToken: text("refresh_token"), // Should be encrypted
+  expiresAt: timestamp("expires_at", { mode: "string" }),
+  scope: text("scope"),
+
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
+});
+
+// Integration events log (audit trail)
+export const integrationEvents = pgTable("integration_events", {
+  id: serial("id").primaryKey().notNull(),
+  siteIntegrationId: text("site_integration_id")
+    .notNull()
+    .references(() => siteIntegrations.id, { onDelete: "cascade" }),
+
+  eventType: text("event_type").notNull(), // 'sync_started', 'sync_completed', 'sync_failed', 'config_changed'
+  payload: jsonb("payload"),
+  errorMessage: text("error_message"),
+
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
+});
+
+// Webhook endpoints for incoming data
+export const integrationWebhooks = pgTable("integration_webhooks", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => `wh_${sql`encode(gen_random_bytes(16), 'hex')`.toString()}`),
+  siteIntegrationId: text("site_integration_id")
+    .notNull()
+    .references(() => siteIntegrations.id, { onDelete: "cascade" }),
+
+  webhookUrl: text("webhook_url").notNull().unique(), // Auto-generated unique URL
+  secret: text("secret").notNull(), // For signature verification, should be encrypted
+  events: jsonb("events").notNull().default([]).$type<string[]>(), // Which webhook events to listen for
+
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
+});

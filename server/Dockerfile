@@ -12,7 +12,8 @@ RUN npm install && npm run build
 # Install server dependencies
 WORKDIR /app/server
 COPY server/package*.json ./
-RUN npm ci
+# Prefer deterministic install; fall back if lockfile is missing/out of sync
+RUN npm ci || npm install
 
 # Copy server source code
 COPY server/ .
@@ -39,9 +40,17 @@ COPY --from=builder /app/server/public ./public
 COPY --from=builder /app/server/src ./src
 COPY --from=builder /app/shared ./shared
 
-# Make the entrypoint executable
-# Normalize line endings (fixes CRLF on Windows checkouts) and make executable
-RUN sed -i 's/\r$//' /docker-entrypoint.sh \
+# Overwrite entrypoint with a sanitized script to avoid CRLF/BOM issues
+RUN printf '%s\n' \
+    '#!/bin/sh' \
+    'set -e' \
+    '' \
+    'echo "Running database migrations..."' \
+    'npm run db:push -- --force' \
+    '' \
+    'echo "Starting application..."' \
+    'exec "$@"' \
+    > /docker-entrypoint.sh \
     && chmod +x /docker-entrypoint.sh
 
 # Expose the API port

@@ -47,13 +47,18 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
     );
   }
 
+  // Only show Analytics sidebar on analytics routes
+  const showAnalyticsSidebar = !pathname.includes("/experiments") && !pathname.includes("/integrations");
+
   return (
     <div className="flex flex-row h-dvh">
       <AppSidebar />
       <div className="flex flex-1 overflow-hidden">
-        <div className="hidden md:flex">
-          <Sidebar />
-        </div>
+        {showAnalyticsSidebar && (
+          <div className="hidden md:flex">
+            <Sidebar />
+          </div>
+        )}
         <div className="flex-1 overflow-auto">
           <div>
             {/* <div className="px-4 py-2 max-w-[1400px] mx-auto w-full mb-4"> */}

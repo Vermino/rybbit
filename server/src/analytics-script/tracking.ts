@@ -8,6 +8,7 @@ export class Tracker {
   private sessionReplayRecorder?: SessionReplayRecorder;
   private scrollDepthFired: Set<number> = new Set();
   private visibilityObserver?: IntersectionObserver;
+  private experimentData: Record<string, string> = {};
 
   constructor(config: ScriptConfig) {
     this.config = config;
@@ -30,6 +31,13 @@ export class Tracker {
     if (config.timerEvents && config.timerEvents.length > 0) {
       this.initTimerEvents();
     }
+  }
+
+  /**
+   * Set experiment variant assignments to include in tracking data
+   */
+  setExperimentData(data: Record<string, string>): void {
+    this.experimentData = data;
   }
 
   private loadUserId(): void {
@@ -105,6 +113,11 @@ export class Tracker {
 
     if (this.customUserId) {
       payload.user_id = this.customUserId;
+    }
+
+    // Include experiment variant assignments
+    if (Object.keys(this.experimentData).length > 0) {
+      payload.experiments = this.experimentData;
     }
 
     return payload;

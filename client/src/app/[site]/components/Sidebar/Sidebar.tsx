@@ -10,7 +10,6 @@ import {
   MousePointerClick,
   Rewind,
   Settings,
-  ShoppingCart,
   Split,
   Target,
   User,
@@ -64,9 +63,6 @@ function SidebarContent() {
 
   return (
     <div className="w-56 bg-neutral-50 border-r border-neutral-150 dark:bg-neutral-900 dark:border-neutral-850 flex flex-col h-dvh">
-      <div className="flex flex-col p-3 border-b border-neutral-200 dark:border-neutral-800">
-        <SiteSelector />
-      </div>
       <div className="flex flex-col p-3 pt-1">
         <SidebarComponents.SectionHeader>Web Analytics</SidebarComponents.SectionHeader>
         <SidebarComponents.Item
@@ -181,22 +177,6 @@ function SidebarContent() {
           href={getTabPath("reports")}
           icon={<ChartBarDecreasing className="w-4 h-4" />}
           /> */}
-        {session.data && !embed && (
-          <>
-            <SidebarComponents.SectionHeader>Settings</SidebarComponents.SectionHeader>
-            <SiteSettings
-              siteId={site?.siteId ?? 0}
-              trigger={
-                <div className="px-3 py-2 rounded-lg transition-colors w-full text-neutral-700 hover:text-neutral-900 hover:bg-neutral-150 dark:text-neutral-200 dark:hover:text-white dark:hover:bg-neutral-800/50 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <Settings className="h-4 w-4" />
-                    <span className="text-sm">Site Settings</span>
-                  </div>
-                </div>
-              }
-            />
-          </>
-        )}
       </div>
     </div>
   );
