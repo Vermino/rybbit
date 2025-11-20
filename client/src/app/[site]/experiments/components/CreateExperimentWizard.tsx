@@ -786,7 +786,17 @@ export function CreateExperimentWizard({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(newOpen) => {
+          // Prevent closing wizard when visual editor is open
+          if (!newOpen && visualEditorOpen) {
+            return;
+          }
+          onOpenChange(newOpen);
+        }}
+      >
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Experiment</DialogTitle>
@@ -837,20 +847,21 @@ export function CreateExperimentWizard({
           </div>
         </div>
       </DialogContent>
-
-      {/* Visual Editor */}
-      {visualEditorOpen && experimentData.targetUrl && editingVariantId && (
-        <VisualEditor
-          targetUrl={experimentData.targetUrl}
-          initialCode={
-            experimentData.variants.find((v) => v.id === editingVariantId)?.customCode || ""
-          }
-          onSave={handleSaveVisualEditorCode}
-          onClose={handleCloseVisualEditor}
-          isMinimized={visualEditorMinimized}
-          onToggleMinimize={() => setVisualEditorMinimized(!visualEditorMinimized)}
-        />
-      )}
     </Dialog>
+
+    {/* Visual Editor - Rendered outside Dialog to prevent interference */}
+    {visualEditorOpen && experimentData.targetUrl && editingVariantId && (
+      <VisualEditor
+        targetUrl={experimentData.targetUrl}
+        initialCode={
+          experimentData.variants.find((v) => v.id === editingVariantId)?.customCode || ""
+        }
+        onSave={handleSaveVisualEditorCode}
+        onClose={handleCloseVisualEditor}
+        isMinimized={visualEditorMinimized}
+        onToggleMinimize={() => setVisualEditorMinimized(!visualEditorMinimized)}
+      />
+    )}
+    </>
   );
 }
