@@ -527,9 +527,7 @@ export const gscConnections = pgTable("gsc_connections", {
 
 // Experiments table - stores experiment configurations
 export const experiments = pgTable("experiments", {
-  id: text("experiment_id")
-    .primaryKey()
-    .$defaultFn(() => `exp_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`),
+  id: serial("experiment_id").primaryKey(),
   siteId: integer("site_id")
     .notNull()
     .references(() => sites.siteId, { onDelete: "cascade" }),
