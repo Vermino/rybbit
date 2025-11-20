@@ -529,7 +529,7 @@ export const gscConnections = pgTable("gsc_connections", {
 export const experiments = pgTable("experiments", {
   id: text("experiment_id")
     .primaryKey()
-    .$defaultFn(() => `exp_${sql`encode(gen_random_bytes(12), 'hex')`.toString()}`),
+    .$defaultFn(() => `exp_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`),
   siteId: integer("site_id")
     .notNull()
     .references(() => sites.siteId, { onDelete: "cascade" }),
