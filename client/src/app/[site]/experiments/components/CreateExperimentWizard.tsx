@@ -72,6 +72,7 @@ export function CreateExperimentWizard({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [visualEditorOpen, setVisualEditorOpen] = useState(false);
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   const [experimentData, setExperimentData] = useState<ExperimentData>({
     name: "",
@@ -582,6 +583,7 @@ export function CreateExperimentWizard({
                                 onClick={() => {
                                   setEditingVariantId(variant.id);
                                   setVisualEditorOpen(true);
+                                  setIsMinimized(true);
                                 }}
                               >
                                 <Paintbrush className="w-3 h-3 mr-1" />
@@ -927,7 +929,7 @@ export function CreateExperimentWizard({
 
   return (
     <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open && !isMinimized} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Experiment</DialogTitle>
@@ -994,12 +996,28 @@ export function CreateExperimentWizard({
           setExperimentData({ ...experimentData, variants: updated });
           setVisualEditorOpen(false);
           setEditingVariantId(null);
+          setIsMinimized(false);
         }}
         onClose={() => {
           setVisualEditorOpen(false);
           setEditingVariantId(null);
+          setIsMinimized(false);
         }}
       />
+    )}
+
+    {/* Minimized Wizard Indicator */}
+    {isMinimized && open && (
+      <div className="fixed bottom-4 right-4 z-[90]">
+        <Button
+          onClick={() => setIsMinimized(false)}
+          className="shadow-lg"
+          size="lg"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Resume Experiment Setup
+        </Button>
+      </div>
     )}
   </>
   );

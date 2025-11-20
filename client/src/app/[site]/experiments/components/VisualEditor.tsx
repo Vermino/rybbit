@@ -285,12 +285,17 @@ export function VisualEditor({ targetUrl, initialCode = "", onSave, onClose }: V
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-[100] bg-black bg-opacity-70 flex items-center justify-center">
+      <div className="bg-white dark:bg-neutral-900 w-full h-full flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-neutral-200 dark:border-neutral-800">
+        <div className="flex items-center justify-between p-4 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
           <div className="flex items-center gap-4">
-            <h2 className="text-lg font-semibold">Visual Editor</h2>
+            <div>
+              <h2 className="text-lg font-semibold">Visual Editor</h2>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                Click elements to edit • Experiment wizard is minimized
+              </p>
+            </div>
             <div className="flex items-center gap-2">
               <Button
                 variant={deviceMode === "desktop" ? "default" : "outline"}
