@@ -89,6 +89,36 @@ export default function ExperimentsPage() {
     }
   };
 
+  // Handle delete experiment
+  const handleDelete = async (experimentId: number, experimentName: string, experimentStatus: string) => {
+    if (experimentStatus === "running") {
+      alert("Cannot delete a running experiment. Please pause it first.");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete "${experimentName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/experiments/${experimentId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        // Refresh experiments list
+        fetchExperiments();
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to delete experiment");
+      }
+    } catch (error) {
+      console.error("Error deleting experiment:", error);
+      alert("Failed to delete experiment");
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "running":
@@ -203,7 +233,13 @@ export default function ExperimentsPage() {
                         <Play className="w-4 h-4" />
                       </Button>
                     ) : null}
-                    <Button variant="ghost" size="sm">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(experiment.id, experiment.name, experiment.status)}
+                      disabled={experiment.status === "running"}
+                      title={experiment.status === "running" ? "Pause the experiment before deleting" : "Delete experiment"}
+                    >
                       <Trash2 className="w-4 h-4 text-red-600" />
                     </Button>
                   </div>
