@@ -455,15 +455,43 @@ export function VisualEditor({
         }
       }
 
-      // If no unique class, use first simple class with nth-of-type
+      // If no unique class, build a more specific selector using parent and tag
       if (classes.length > 0) {
         const parent = element.parentElement;
         if (parent) {
+          // Get parent selector (use ID, class, or tag)
+          let parentSelector = 'body';
+          if (parent.id) {
+            parentSelector = `#${parent.id}`;
+          } else if (parent.className) {
+            const parentClasses = parent.className.split(" ").filter(c =>
+              c && !c.startsWith("rybbit-") && !/[:\[\]\\\/\(\)\@\&]/.test(c)
+            );
+            if (parentClasses.length > 0) {
+              parentSelector = `.${parentClasses[0]}`;
+            }
+          } else {
+            parentSelector = parent.tagName.toLowerCase();
+          }
+
+          // Use parent > tag.class:nth-of-type pattern
+          const tagName = element.tagName.toLowerCase();
           const siblings = Array.from(parent.children).filter(
-            (el) => el.tagName === element.tagName
+            (el) => el.tagName === element.tagName && el.classList.contains(classes[0])
           );
-          const index = siblings.indexOf(element) + 1;
-          return `.${classes[0]}:nth-of-type(${index})`;
+          const index = siblings.indexOf(element);
+
+          if (index >= 0 && siblings.length > 1) {
+            // Multiple siblings with same tag and class - use nth-of-type
+            const allTypeSiblings = Array.from(parent.children).filter(
+              (el) => el.tagName === element.tagName
+            );
+            const typeIndex = allTypeSiblings.indexOf(element) + 1;
+            return `${parentSelector} > ${tagName}.${classes[0]}:nth-of-type(${typeIndex})`;
+          } else {
+            // Use parent > tag.class
+            return `${parentSelector} > ${tagName}.${classes[0]}`;
+          }
         }
         return `.${classes[0]}`;
       }
