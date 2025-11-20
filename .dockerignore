@@ -1,0 +1,46 @@
+# Exclude node_modules from build context (they're reinstalled in Docker)
+server/node_modules/
+client/node_modules/
+node_modules/
+
+# Exclude build artifacts
+server/dist/
+client/.next/
+client/out/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+server/.env
+client/.env
+client/.env.local
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+.cache/
+temp/
+tmp/
