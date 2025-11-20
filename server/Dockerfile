@@ -25,8 +25,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install PostgreSQL client for migrations
-RUN apk add --no-cache postgresql-client
+# Install PostgreSQL client for migrations and dos2unix for line ending conversion
+RUN apk add --no-cache postgresql-client dos2unix
 
 # Copy built application and dependencies
 COPY --from=builder /app/server/package*.json ./
@@ -39,8 +39,8 @@ COPY --from=builder /app/server/public ./public
 COPY --from=builder /app/server/src ./src
 COPY --from=builder /app/shared ./shared
 
-# Make the entrypoint executable
-RUN chmod +x /docker-entrypoint.sh
+# Convert line endings and make the entrypoint executable
+RUN dos2unix /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
 
 # Expose the API port
 EXPOSE 3001
