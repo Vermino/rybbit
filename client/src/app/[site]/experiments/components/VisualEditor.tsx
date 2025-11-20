@@ -169,22 +169,38 @@ export function VisualEditor({
         styleRegex.lastIndex = 0; // Reset regex
         while ((match = styleRegex.exec(initialCode)) !== null) {
           const [, selector, property, value] = match;
+          console.log(`Visual Editor: Parsed style change - selector="${selector}", property="${property}", value="${value}"`);
+
           if (!parsedChanges[selector]) {
             parsedChanges[selector] = {};
           }
           parsedChanges[selector][property] = value;
 
           // Apply to iframe - apply to ALL matching elements
-          const elements = iframeDoc.querySelectorAll(selector);
-          if (elements.length > 0) {
-            foundAnyElements = true;
-            console.log(`Visual Editor: Applying ${property}=${value} to selector "${selector}" (found ${elements.length} elements)`);
-            elements.forEach((el) => {
-              const htmlEl = el as HTMLElement;
-              (htmlEl.style as any)[property] = value;
-            });
-          } else {
-            console.warn(`Visual Editor: No elements found for selector "${selector}" (attempt ${attempt + 1})`);
+          try {
+            const elements = iframeDoc.querySelectorAll(selector);
+            console.log(`Visual Editor: querySelectorAll("${selector}") returned ${elements.length} elements (attempt ${attempt + 1})`);
+
+            if (elements.length > 0) {
+              foundAnyElements = true;
+              console.log(`Visual Editor: Applying ${property}=${value} to selector "${selector}" (found ${elements.length} elements)`);
+              elements.forEach((el) => {
+                const htmlEl = el as HTMLElement;
+                (htmlEl.style as any)[property] = value;
+              });
+            } else {
+              console.warn(`Visual Editor: No elements found for selector "${selector}" on attempt ${attempt + 1}`);
+              // Log all elements with class 'bg-white' for debugging
+              if (selector.includes('bg-white')) {
+                const allBgWhite = iframeDoc.querySelectorAll('[class*="bg-white"]');
+                console.log(`Visual Editor: Found ${allBgWhite.length} elements with 'bg-white' in class attribute`);
+                if (allBgWhite.length > 0) {
+                  console.log('Visual Editor: Sample element classes:', (allBgWhite[0] as HTMLElement).className);
+                }
+              }
+            }
+          } catch (error) {
+            console.error(`Visual Editor: Error querying selector "${selector}":`, error);
           }
         }
 
