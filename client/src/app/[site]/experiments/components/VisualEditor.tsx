@@ -7,8 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import {
   Eye,
+  EyeOff,
   Code,
   MousePointer,
   Type,
@@ -20,6 +24,8 @@ import {
   Monitor,
   Smartphone,
   Tablet,
+  Layout,
+  Box,
 } from "lucide-react";
 
 interface VisualEditorProps {
@@ -29,36 +35,63 @@ interface VisualEditorProps {
   onClose: () => void;
 }
 
+interface ElementData {
+  tagName: string;
+  textContent: string;
+  innerHTML: string;
+  id: string;
+  className: string;
+  color: string;
+  backgroundColor: string;
+  fontSize: string;
+  fontFamily: string;
+  fontWeight: string;
+  lineHeight: string;
+  textAlign: string;
+  display: string;
+  width: string;
+  height: string;
+  margin: string;
+  padding: string;
+  border: string;
+  borderRadius: string;
+  opacity: string;
+}
+
 interface ElementEdit {
   selector: string;
   property: string;
   value: string;
-  originalValue?: string;
 }
 
 export function VisualEditor({ targetUrl, initialCode = "", onSave, onClose }: VisualEditorProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedElement, setSelectedElement] = useState<string | null>(null);
+  const [elementData, setElementData] = useState<ElementData | null>(null);
   const [edits, setEdits] = useState<ElementEdit[]>([]);
   const [history, setHistory] = useState<ElementEdit[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [deviceMode, setDeviceMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
-  const [editMode, setEditMode] = useState<"select" | "code">("select");
 
   // Editor state
-  const [textValue, setTextValue] = useState("");
-  const [cssValue, setCssValue] = useState("");
-  const [htmlValue, setHtmlValue] = useState("");
+  const [isVisible, setIsVisible] = useState(true);
+  const [text, setText] = useState("");
+  const [html, setHtml] = useState("");
+  const [color, setColor] = useState("#000000");
+  const [bgColor, setBgColor] = useState("#ffffff");
+  const [fontSize, setFontSize] = useState("16");
+  const [fontWeight, setFontWeight] = useState("400");
+  const [fontFamily, setFontFamily] = useState("inherit");
+  const [lineHeight, setLineHeight] = useState("1.5");
+  const [textAlign, setTextAlign] = useState("left");
+  const [displayMode, setDisplayMode] = useState("block");
+  const [opacity, setOpacity] = useState(100);
+  const [borderRadius, setBorderRadius] = useState("0");
 
   useEffect(() => {
     if (initialCode) {
-      // Parse initial code if provided
-      try {
-        // TODO: Parse existing custom code to edits
-      } catch (error) {
-        console.error("Failed to parse initial code:", error);
-      }
+      // TODO: Parse initial code if provided
     }
   }, [initialCode]);
 
@@ -102,17 +135,7 @@ export function VisualEditor({ targetUrl, initialCode = "", onSave, onClose }: V
         (function() {
           let selectedElement = null;
 
-          // Hover effect
-          document.addEventListener('mouseover', function(e) {
-            if (e.target.classList.contains('rybbit-selected')) return;
-            e.target.classList.add('rybbit-hover');
-          });
-
-          document.addEventListener('mouseout', function(e) {
-            e.target.classList.remove('rybbit-hover');
-          });
-
-          // Click to select
+          // Prevent ALL navigation in edit mode
           document.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -127,15 +150,53 @@ export function VisualEditor({ targetUrl, initialCode = "", onSave, onClose }: V
             selectedElement.classList.add('rybbit-selected');
             selectedElement.classList.remove('rybbit-hover');
 
-            // Send message to parent
+            // Get computed styles
+            const computed = window.getComputedStyle(e.target);
+
+            // Send message to parent with full element data
             const selector = generateSelector(e.target);
             window.parent.postMessage({
               type: 'rybbit-element-selected',
               selector: selector,
-              text: e.target.textContent,
-              html: e.target.innerHTML,
-              css: window.getComputedStyle(e.target).cssText
+              element: {
+                tagName: e.target.tagName.toLowerCase(),
+                textContent: e.target.textContent,
+                innerHTML: e.target.innerHTML,
+                id: e.target.id,
+                className: e.target.className,
+                // Computed styles
+                color: computed.color,
+                backgroundColor: computed.backgroundColor,
+                fontSize: computed.fontSize,
+                fontFamily: computed.fontFamily,
+                fontWeight: computed.fontWeight,
+                lineHeight: computed.lineHeight,
+                textAlign: computed.textAlign,
+                display: computed.display,
+                width: computed.width,
+                height: computed.height,
+                margin: computed.margin,
+                padding: computed.padding,
+                border: computed.border,
+                borderRadius: computed.borderRadius,
+                opacity: computed.opacity,
+              }
             }, '*');
+          }, true); // Use capture phase to prevent ALL clicks
+
+          // Prevent form submissions
+          document.addEventListener('submit', function(e) {
+            e.preventDefault();
+          }, true);
+
+          // Hover effect
+          document.addEventListener('mouseover', function(e) {
+            if (e.target.classList.contains('rybbit-selected')) return;
+            e.target.classList.add('rybbit-hover');
+          });
+
+          document.addEventListener('mouseout', function(e) {
+            e.target.classList.remove('rybbit-hover');
           });
 
           // Generate CSS selector for an element
@@ -181,9 +242,23 @@ export function VisualEditor({ targetUrl, initialCode = "", onSave, onClose }: V
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === "rybbit-element-selected") {
         setSelectedElement(event.data.selector);
-        setTextValue(event.data.text || "");
-        setHtmlValue(event.data.html || "");
-        setCssValue(event.data.css || "");
+        const el = event.data.element;
+        setElementData(el);
+
+        // Populate editor fields
+        setText(el.textContent || "");
+        setHtml(el.innerHTML || "");
+        setColor(rgbToHex(el.color) || "#000000");
+        setBgColor(rgbToHex(el.backgroundColor) || "#ffffff");
+        setFontSize(parseInt(el.fontSize) || 16);
+        setFontWeight(el.fontWeight || "400");
+        setFontFamily(el.fontFamily || "inherit");
+        setLineHeight(parseFloat(el.lineHeight) || 1.5);
+        setTextAlign(el.textAlign || "left");
+        setDisplayMode(el.display || "block");
+        setOpacity(parseFloat(el.opacity) * 100 || 100);
+        setBorderRadius(parseInt(el.borderRadius) || 0);
+        setIsVisible(el.display !== "none");
       }
     };
 
@@ -191,29 +266,69 @@ export function VisualEditor({ targetUrl, initialCode = "", onSave, onClose }: V
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
-  const applyEdit = (property: string, value: string) => {
-    if (!selectedElement) return;
-
-    const newEdit: ElementEdit = {
-      selector: selectedElement,
-      property,
-      value,
-    };
-
-    const newEdits = [...edits, newEdit];
-    setEdits(newEdits);
-
-    // Update history
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(newEdits);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-
-    // Apply to iframe
-    applyEditsToIframe(newEdits);
+  // Helper function to convert RGB to HEX
+  const rgbToHex = (rgb: string): string => {
+    if (!rgb || rgb === 'rgba(0, 0, 0, 0)' || rgb === 'transparent') return "#ffffff";
+    const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+    if (!match) return rgb;
+    const r = parseInt(match[1]);
+    const g = parseInt(match[2]);
+    const b = parseInt(match[3]);
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
   };
 
-  const applyEditsToIframe = (editsToApply: ElementEdit[]) => {
+  const applyStyle = (property: string, value: string) => {
+    if (!selectedElement) return;
+
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentWindow) return;
+
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    const element = doc.querySelector(selectedElement);
+
+    if (element) {
+      if (property === "textContent") {
+        element.textContent = value;
+      } else if (property === "innerHTML") {
+        element.innerHTML = value;
+      } else {
+        (element as HTMLElement).style[property as any] = value;
+      }
+
+      // Track edit
+      const newEdit: ElementEdit = { selector: selectedElement, property, value };
+      const newEdits = [...edits, newEdit];
+      setEdits(newEdits);
+
+      // Update history
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(newEdits);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    }
+  };
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      const editsToApply = history[newIndex];
+      setEdits(editsToApply);
+      reapplyAllEdits(editsToApply);
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      const editsToApply = history[newIndex];
+      setEdits(editsToApply);
+      reapplyAllEdits(editsToApply);
+    }
+  };
+
+  const reapplyAllEdits = (editsToApply: ElementEdit[]) => {
     const iframe = iframeRef.current;
     if (!iframe || !iframe.contentWindow) return;
 
@@ -235,26 +350,6 @@ export function VisualEditor({ targetUrl, initialCode = "", onSave, onClose }: V
         console.error("Failed to apply edit:", error);
       }
     });
-  };
-
-  const undo = () => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      const editsToApply = history[newIndex];
-      setEdits(editsToApply);
-      applyEditsToIframe(editsToApply);
-    }
-  };
-
-  const redo = () => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      const editsToApply = history[newIndex];
-      setEdits(editsToApply);
-      applyEditsToIframe(editsToApply);
-    }
   };
 
   const generateCode = () => {
@@ -368,148 +463,306 @@ export function VisualEditor({ targetUrl, initialCode = "", onSave, onClose }: V
           </div>
 
           {/* Editor Panel */}
-          <div className="w-80 border-l border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 overflow-y-auto">
-            <Card className="border-0 rounded-none">
-              <CardHeader>
-                <CardTitle className="text-sm">Element Editor</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {!selectedElement ? (
-                  <div className="text-center py-8 text-neutral-500 dark:text-neutral-400 text-sm">
-                    <MousePointer className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p>Click on any element in the preview to start editing</p>
+          <div className="w-96 border-l border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 overflow-y-auto">
+            {!selectedElement ? (
+              <div className="flex flex-col items-center justify-center h-full text-center p-8 text-neutral-500 dark:text-neutral-400">
+                <MousePointer className="w-12 h-12 mb-4 opacity-50" />
+                <h3 className="text-lg font-medium mb-2">No Element Selected</h3>
+                <p className="text-sm">Click on any element in the preview to start editing</p>
+              </div>
+            ) : (
+              <Tabs defaultValue="element" className="w-full">
+                <TabsList className="grid w-full grid-cols-5">
+                  <TabsTrigger value="element" className="text-xs px-2">
+                    <Box className="w-3 h-3" />
+                  </TabsTrigger>
+                  <TabsTrigger value="content" className="text-xs px-2">
+                    <Type className="w-3 h-3" />
+                  </TabsTrigger>
+                  <TabsTrigger value="layout" className="text-xs px-2">
+                    <Layout className="w-3 h-3" />
+                  </TabsTrigger>
+                  <TabsTrigger value="typography" className="text-xs px-2">
+                    <Type className="w-3 h-3" />
+                  </TabsTrigger>
+                  <TabsTrigger value="colors" className="text-xs px-2">
+                    <Palette className="w-3 h-3" />
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Element Tab */}
+                <TabsContent value="element" className="p-4 space-y-4">
+                  <div>
+                    <Label className="text-xs font-medium">Selector</Label>
+                    <code className="text-xs block p-2 bg-neutral-100 dark:bg-neutral-800 rounded mt-1">
+                      {selectedElement}
+                    </code>
                   </div>
-                ) : (
-                  <Tabs defaultValue="text">
-                    <TabsList className="grid w-full grid-cols-3">
-                      <TabsTrigger value="text" className="text-xs">
-                        <Type className="w-3 h-3 mr-1" />
-                        Text
-                      </TabsTrigger>
-                      <TabsTrigger value="style" className="text-xs">
-                        <Palette className="w-3 h-3 mr-1" />
-                        Style
-                      </TabsTrigger>
-                      <TabsTrigger value="html" className="text-xs">
-                        <Code className="w-3 h-3 mr-1" />
-                        HTML
-                      </TabsTrigger>
-                    </TabsList>
 
-                    <TabsContent value="text" className="space-y-3">
-                      <div>
-                        <Label className="text-xs">Selected Element</Label>
-                        <code className="text-xs block p-2 bg-neutral-100 dark:bg-neutral-800 rounded mt-1">
-                          {selectedElement}
-                        </code>
-                      </div>
-                      <div>
-                        <Label htmlFor="text" className="text-xs">
-                          Text Content
-                        </Label>
-                        <Textarea
-                          id="text"
-                          value={textValue}
-                          onChange={(e) => setTextValue(e.target.value)}
-                          rows={4}
-                          className="mt-1 text-sm"
-                        />
-                        <Button
-                          size="sm"
-                          className="w-full mt-2"
-                          onClick={() => applyEdit("textContent", textValue)}
-                        >
-                          Apply Text Change
-                        </Button>
-                      </div>
-                    </TabsContent>
+                  <div>
+                    <Label className="text-xs font-medium">HTML Tag</Label>
+                    <p className="text-sm mt-1 text-neutral-600 dark:text-neutral-400">
+                      &lt;{elementData?.tagName}&gt;
+                    </p>
+                  </div>
 
-                    <TabsContent value="style" className="space-y-3">
-                      <div>
-                        <Label className="text-xs">Color</Label>
-                        <Input
-                          type="color"
-                          className="mt-1 h-10"
-                          onChange={(e) => applyEdit("color", e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Background Color</Label>
-                        <Input
-                          type="color"
-                          className="mt-1 h-10"
-                          onChange={(e) => applyEdit("backgroundColor", e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Font Size</Label>
-                        <Input
-                          type="text"
-                          placeholder="e.g., 16px, 1.5rem"
-                          className="mt-1"
-                          onChange={(e) => applyEdit("fontSize", e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Display</Label>
-                        <select
-                          className="w-full mt-1 p-2 border rounded text-sm"
-                          onChange={(e) => applyEdit("display", e.target.value)}
-                        >
-                          <option value="">Choose...</option>
-                          <option value="none">Hide</option>
-                          <option value="block">Block</option>
-                          <option value="flex">Flex</option>
-                          <option value="inline">Inline</option>
-                        </select>
-                      </div>
-                    </TabsContent>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium">Visibility</Label>
+                    <Switch
+                      checked={isVisible}
+                      onCheckedChange={(checked) => {
+                        setIsVisible(checked);
+                        applyStyle("display", checked ? displayMode : "none");
+                      }}
+                    />
+                  </div>
+                </TabsContent>
 
-                    <TabsContent value="html" className="space-y-3">
-                      <div>
-                        <Label htmlFor="html" className="text-xs">
-                          HTML Content
-                        </Label>
-                        <Textarea
-                          id="html"
-                          value={htmlValue}
-                          onChange={(e) => setHtmlValue(e.target.value)}
-                          rows={8}
-                          className="mt-1 text-xs font-mono"
-                        />
-                        <Button
-                          size="sm"
-                          className="w-full mt-2"
-                          onClick={() => applyEdit("innerHTML", htmlValue)}
-                        >
-                          Apply HTML Change
-                        </Button>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                )}
+                {/* Content Tab */}
+                <TabsContent value="content" className="p-4 space-y-4">
+                  <div>
+                    <Label htmlFor="text" className="text-xs font-medium">
+                      Text Content
+                    </Label>
+                    <Textarea
+                      id="text"
+                      value={text}
+                      onChange={(e) => {
+                        setText(e.target.value);
+                        applyStyle("textContent", e.target.value);
+                      }}
+                      rows={6}
+                      className="mt-1 text-sm"
+                    />
+                  </div>
 
-                {edits.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                    <Label className="text-xs">Changes ({edits.length})</Label>
-                    <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
-                      {edits.map((edit, idx) => (
-                        <div
-                          key={idx}
-                          className="text-xs p-2 bg-neutral-100 dark:bg-neutral-800 rounded"
-                        >
-                          <code className="text-blue-600 dark:text-blue-400">{edit.selector}</code>
-                          <br />
-                          <span className="text-neutral-600 dark:text-neutral-400">
-                            {edit.property}: {edit.value}
-                          </span>
-                        </div>
-                      ))}
+                  <div>
+                    <Label htmlFor="html" className="text-xs font-medium">
+                      HTML Content
+                    </Label>
+                    <Textarea
+                      id="html"
+                      value={html}
+                      onChange={(e) => {
+                        setHtml(e.target.value);
+                        applyStyle("innerHTML", e.target.value);
+                      }}
+                      rows={8}
+                      className="mt-1 text-xs font-mono"
+                    />
+                  </div>
+                </TabsContent>
+
+                {/* Layout & Spacing Tab */}
+                <TabsContent value="layout" className="p-4 space-y-4">
+                  <div>
+                    <Label className="text-xs font-medium">Display Mode</Label>
+                    <Select
+                      value={displayMode}
+                      onValueChange={(value) => {
+                        setDisplayMode(value);
+                        applyStyle("display", value);
+                      }}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="block">Block</SelectItem>
+                        <SelectItem value="inline-block">Inline Block</SelectItem>
+                        <SelectItem value="flex">Flex</SelectItem>
+                        <SelectItem value="grid">Grid</SelectItem>
+                        <SelectItem value="none">Hidden</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </TabsContent>
+
+                {/* Typography Tab */}
+                <TabsContent value="typography" className="p-4 space-y-4">
+                  <div>
+                    <Label className="text-xs font-medium">Font Size</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Slider
+                        value={[parseInt(fontSize.toString())]}
+                        onValueChange={([value]) => {
+                          setFontSize(value);
+                          applyStyle("fontSize", value + "px");
+                        }}
+                        min={8}
+                        max={72}
+                        step={1}
+                        className="flex-1"
+                      />
+                      <span className="text-sm w-12 text-right">{fontSize}px</span>
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+
+                  <div>
+                    <Label className="text-xs font-medium">Font Weight</Label>
+                    <Select
+                      value={fontWeight}
+                      onValueChange={(value) => {
+                        setFontWeight(value);
+                        applyStyle("fontWeight", value);
+                      }}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="300">Light (300)</SelectItem>
+                        <SelectItem value="400">Normal (400)</SelectItem>
+                        <SelectItem value="500">Medium (500)</SelectItem>
+                        <SelectItem value="600">Semi-Bold (600)</SelectItem>
+                        <SelectItem value="700">Bold (700)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-medium">Line Height</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Slider
+                        value={[parseFloat(lineHeight.toString())]}
+                        onValueChange={([value]) => {
+                          setLineHeight(value);
+                          applyStyle("lineHeight", value.toString());
+                        }}
+                        min={1}
+                        max={3}
+                        step={0.1}
+                        className="flex-1"
+                      />
+                      <span className="text-sm w-12 text-right">{lineHeight}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-medium">Text Align</Label>
+                    <Select
+                      value={textAlign}
+                      onValueChange={(value) => {
+                        setTextAlign(value);
+                        applyStyle("textAlign", value);
+                      }}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="left">Left</SelectItem>
+                        <SelectItem value="center">Center</SelectItem>
+                        <SelectItem value="right">Right</SelectItem>
+                        <SelectItem value="justify">Justify</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </TabsContent>
+
+                {/* Colors & Effects Tab */}
+                <TabsContent value="colors" className="p-4 space-y-4">
+                  <div>
+                    <Label htmlFor="color" className="text-xs font-medium">
+                      Text Color
+                    </Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Input
+                        id="color"
+                        type="color"
+                        value={color}
+                        onChange={(e) => {
+                          setColor(e.target.value);
+                          applyStyle("color", e.target.value);
+                        }}
+                        className="w-20 h-10"
+                      />
+                      <Input
+                        type="text"
+                        value={color}
+                        onChange={(e) => {
+                          setColor(e.target.value);
+                          applyStyle("color", e.target.value);
+                        }}
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="bgColor" className="text-xs font-medium">
+                      Background Color
+                    </Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Input
+                        id="bgColor"
+                        type="color"
+                        value={bgColor}
+                        onChange={(e) => {
+                          setBgColor(e.target.value);
+                          applyStyle("backgroundColor", e.target.value);
+                        }}
+                        className="w-20 h-10"
+                      />
+                      <Input
+                        type="text"
+                        value={bgColor}
+                        onChange={(e) => {
+                          setBgColor(e.target.value);
+                          applyStyle("backgroundColor", e.target.value);
+                        }}
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-medium">Border Radius</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Slider
+                        value={[parseInt(borderRadius.toString())]}
+                        onValueChange={([value]) => {
+                          setBorderRadius(value);
+                          applyStyle("borderRadius", value + "px");
+                        }}
+                        min={0}
+                        max={50}
+                        step={1}
+                        className="flex-1"
+                      />
+                      <span className="text-sm w-12 text-right">{borderRadius}px</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-medium">Opacity</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Slider
+                        value={[opacity]}
+                        onValueChange={([value]) => {
+                          setOpacity(value);
+                          applyStyle("opacity", (value / 100).toString());
+                        }}
+                        min={0}
+                        max={100}
+                        step={1}
+                        className="flex-1"
+                      />
+                      <span className="text-sm w-12 text-right">{opacity}%</span>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
+
+            {/* Change Counter */}
+            {edits.length > 0 && (
+              <div className="p-4 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900">
+                <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                  {edits.length} change{edits.length !== 1 ? 's' : ''} made
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
