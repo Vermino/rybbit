@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 
 interface ElementData {
-  selector: string;
+  selector: string; // Editor selector (with data-rybbit-id)
+  productionSelector: string; // Production selector for code generation
   tagName: string;
   textContent: string;
   innerHTML: string;
@@ -186,10 +187,14 @@ export function VisualEditor({
 
         // Extract element data - USE IFRAME WINDOW FOR COMPUTED STYLES
         const computedStyles = iframeWin.getComputedStyle(target);
-        const selector = generateSelector(target);
+        const selector = generateSelector(target); // Editor selector with data-rybbit-id
+        const productionSelector = generateProductionSelector(target); // Production selector for code
+
+        console.log("Visual Editor: Selectors", { editor: selector, production: productionSelector });
 
         const elementData: ElementData = {
           selector,
+          productionSelector,
           tagName: target.tagName.toLowerCase(),
           textContent: target.textContent || "",
           innerHTML: target.innerHTML || "",
@@ -273,17 +278,71 @@ export function VisualEditor({
     };
   }, []);
 
-  // Generate CSS selector for element
+  // Generate CSS selector for element (editor use - with data attribute)
   const generateSelector = (element: HTMLElement): string => {
-    if (element.id) return `#${element.id}`;
+    // If element already has our data attribute, use it
+    if (element.hasAttribute('data-rybbit-id')) {
+      return `[data-rybbit-id="${element.getAttribute('data-rybbit-id')}"]`;
+    }
+
+    // Add unique data attribute to element
+    const uniqueId = `rybbit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    element.setAttribute('data-rybbit-id', uniqueId);
+    return `[data-rybbit-id="${uniqueId}"]`;
+  };
+
+  // Generate production-safe CSS selector for code generation
+  const generateProductionSelector = (element: HTMLElement): string => {
+    // 1. Try ID first (most reliable)
+    if (element.id) {
+      return `#${element.id}`;
+    }
+
+    // 2. Try to find a simple, unique class (no special chars)
     if (element.className) {
       const classes = element.className
         .split(" ")
-        .filter((c) => c && !c.startsWith("rybbit-"))
-        .map((c) => `.${c}`)
-        .join("");
-      if (classes) return classes;
+        .filter((c) => {
+          // Filter out rybbit classes and complex classes with special chars
+          return c &&
+                 !c.startsWith("rybbit-") &&
+                 !/[:\[\]\\\/\(\)\@\&]/.test(c); // No special characters
+        });
+
+      // Try each simple class to see if it's unique
+      for (const cls of classes) {
+        const selector = `.${cls}`;
+        const iframeDoc = element.ownerDocument;
+        if (iframeDoc && iframeDoc.querySelectorAll(selector).length === 1) {
+          return selector;
+        }
+      }
+
+      // If no unique class, use first simple class with nth-of-type
+      if (classes.length > 0) {
+        const parent = element.parentElement;
+        if (parent) {
+          const siblings = Array.from(parent.children).filter(
+            (el) => el.tagName === element.tagName
+          );
+          const index = siblings.indexOf(element) + 1;
+          return `.${classes[0]}:nth-of-type(${index})`;
+        }
+        return `.${classes[0]}`;
+      }
     }
+
+    // 3. Fallback: use tag name with nth-of-type
+    const parent = element.parentElement;
+    if (parent) {
+      const siblings = Array.from(parent.children).filter(
+        (el) => el.tagName === element.tagName
+      );
+      const index = siblings.indexOf(element) + 1;
+      return `${element.tagName.toLowerCase()}:nth-of-type(${index})`;
+    }
+
+    // 4. Last resort: just tag name
     return element.tagName.toLowerCase();
   };
 
@@ -393,20 +452,21 @@ export function VisualEditor({
       (element.style as any)[property] = value;
     }
 
-    // Track the change for code generation
+    // Track the change for code generation (use production selector)
     setChanges((prevChanges) => {
       const newChanges = { ...prevChanges };
-      if (!newChanges[selectedElement.selector]) {
-        newChanges[selectedElement.selector] = {};
+      const prodSelector = selectedElement.productionSelector;
+      if (!newChanges[prodSelector]) {
+        newChanges[prodSelector] = {};
       }
-      newChanges[selectedElement.selector][property] = value;
+      newChanges[prodSelector][property] = value;
 
       // Calculate total changes
       const totalChanges = Object.keys(newChanges).reduce(
         (sum, sel) => sum + Object.keys(newChanges[sel]).length,
         0
       );
-      console.log(`Visual Editor: Total changes = ${totalChanges}`);
+      console.log(`Visual Editor: Total changes = ${totalChanges}`, newChanges);
       setChangeCount(totalChanges);
 
       return newChanges;
