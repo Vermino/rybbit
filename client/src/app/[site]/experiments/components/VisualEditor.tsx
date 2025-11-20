@@ -139,6 +139,89 @@ export function VisualEditor({
   const [boxShadowColor, setBoxShadowColor] = useState("#000000");
   const [opacity, setOpacity] = useState(100);
 
+  // Parse and apply initial code when iframe loads
+  useEffect(() => {
+    if (!initialCode || !iframeReady || !iframeRef.current) return;
+
+    const iframeDoc = iframeRef.current.contentDocument;
+    if (!iframeDoc) return;
+
+    console.log("Visual Editor: Applying initial code", initialCode);
+
+    try {
+      // Parse the initialCode to extract changes
+      const parsedChanges: Record<string, any> = {};
+
+      // Match patterns like:
+      // document.querySelector('selector').style.property = 'value';
+      // document.querySelector('selector').textContent = 'value';
+      const styleRegex = /document\.querySelector\(['"](.+?)['"]\)\.style\.(\w+)\s*=\s*['"](.+?)['"]/g;
+      const textContentRegex = /document\.querySelector\(['"](.+?)['"]\)\.textContent\s*=\s*['"](.+?)['"]/g;
+      const innerHTMLRegex = /document\.querySelector\(['"](.+?)['"]\)\.innerHTML\s*=\s*['"](.+?)['"]/g;
+
+      let match;
+
+      // Parse style changes
+      while ((match = styleRegex.exec(initialCode)) !== null) {
+        const [, selector, property, value] = match;
+        if (!parsedChanges[selector]) {
+          parsedChanges[selector] = {};
+        }
+        parsedChanges[selector][property] = value;
+
+        // Apply to iframe
+        const element = iframeDoc.querySelector(selector) as HTMLElement;
+        if (element) {
+          (element.style as any)[property] = value;
+        }
+      }
+
+      // Parse textContent changes
+      while ((match = textContentRegex.exec(initialCode)) !== null) {
+        const [, selector, value] = match;
+        if (!parsedChanges[selector]) {
+          parsedChanges[selector] = {};
+        }
+        parsedChanges[selector].textContent = value;
+
+        // Apply to iframe
+        const element = iframeDoc.querySelector(selector) as HTMLElement;
+        if (element) {
+          element.textContent = value;
+        }
+      }
+
+      // Parse innerHTML changes
+      while ((match = innerHTMLRegex.exec(initialCode)) !== null) {
+        const [, selector, value] = match;
+        if (!parsedChanges[selector]) {
+          parsedChanges[selector] = {};
+        }
+        parsedChanges[selector].innerHTML = value;
+
+        // Apply to iframe
+        const element = iframeDoc.querySelector(selector) as HTMLElement;
+        if (element) {
+          element.innerHTML = value;
+        }
+      }
+
+      // Update state with parsed changes
+      setChanges(parsedChanges);
+
+      // Calculate and set change count
+      const totalChanges = Object.keys(parsedChanges).reduce(
+        (sum, sel) => sum + Object.keys(parsedChanges[sel]).length,
+        0
+      );
+      setChangeCount(totalChanges);
+
+      console.log("Visual Editor: Loaded existing changes", { parsedChanges, totalChanges });
+    } catch (error) {
+      console.error("Visual Editor: Error parsing initial code", error);
+    }
+  }, [initialCode, iframeReady]);
+
   useEffect(() => {
     if (!iframeRef.current) return;
 
