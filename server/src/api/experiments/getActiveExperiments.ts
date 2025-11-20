@@ -1,5 +1,5 @@
 import { FastifyReply, FastifyRequest } from "fastify";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db } from "../../db/postgres/postgres.js";
 import { experiments } from "../../db/postgres/schema.js";
 
@@ -37,9 +37,12 @@ export async function getActiveExperiments(
         targetUrl: experiments.targetUrl,
       })
       .from(experiments)
-      .where(eq(experiments.siteId, siteIdNum))
-      // Only return running experiments
-      .where(eq(experiments.status, "running"));
+      .where(
+        and(
+          eq(experiments.siteId, siteIdNum),
+          eq(experiments.status, "running")
+        )
+      );
 
     // This is a public endpoint, so we use CORS headers
     reply.header("Access-Control-Allow-Origin", "*");
