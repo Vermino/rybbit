@@ -1,17 +1,17 @@
-import type { Request, Response } from "express";
-import { getSessionFromReq } from "../../lib/auth.js";
-import { db } from "../../db/postgres/index.js";
+import { FastifyRequest, FastifyReply } from "fastify";
+import { getSessionFromReq } from "../../lib/auth-utils.js";
+import { db } from "../../db/postgres/postgres.js";
 import { shopifyConnections } from "../../db/postgres/schema-shopify.js";
 import { eq, and } from "drizzle-orm";
 
-export async function disconnectShopify(req: Request, res: Response) {
+export async function disconnectShopify(req: FastifyRequest, res: FastifyReply) {
   try {
     const session = await getSessionFromReq(req);
     if (!session) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).send({ error: "Unauthorized" });
     }
 
-    const { siteId } = req.params;
+    const { siteId } = req.params as { siteId: string };
 
     // Find the connection
     const connection = await db.query.shopifyConnections.findFirst({
@@ -22,7 +22,7 @@ export async function disconnectShopify(req: Request, res: Response) {
     });
 
     if (!connection) {
-      return res.status(404).json({ error: "Shopify connection not found" });
+      return res.status(404).send({ error: "Shopify connection not found" });
     }
 
     // Mark as uninstalled instead of deleting (for historical data)
@@ -34,9 +34,9 @@ export async function disconnectShopify(req: Request, res: Response) {
       })
       .where(eq(shopifyConnections.id, connection.id));
 
-    return res.json({ success: true, message: "Shopify disconnected successfully" });
+    return res.send({ success: true, message: "Shopify disconnected successfully" });
   } catch (error) {
     console.error("Error in disconnectShopify:", error);
-    return res.status(500).json({ error: "Failed to disconnect Shopify" });
+    return res.status(500).send({ error: "Failed to disconnect Shopify" });
   }
 }

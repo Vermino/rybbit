@@ -1,6 +1,6 @@
-import type { Request, Response } from "express";
+import { FastifyRequest, FastifyReply } from "fastify";
 import crypto from "crypto";
-import { db } from "../../db/postgres/index.js";
+import { db } from "../../db/postgres/postgres.js";
 import { shopifyConnections, shopifyOrders, shopifyWebhookEvents } from "../../db/postgres/schema-shopify.js";
 import { eq, and, isNull } from "drizzle-orm";
 
@@ -18,11 +18,11 @@ function verifyWebhook(rawBody: string, hmacHeader: string): boolean {
   return hash === hmacHeader;
 }
 
-export async function handleOrderCreated(req: Request, res: Response) {
+export async function handleOrderCreated(req: FastifyRequest, res: FastifyReply) {
   try {
-    const hmac = req.headers["x-shopify-hmac-sha256"];
-    const shopDomain = req.headers["x-shopify-shop-domain"];
-    const topic = req.headers["x-shopify-topic"];
+    const hmac = req.headers["x-shopify-hmac-sha256"] as string | undefined;
+    const shopDomain = req.headers["x-shopify-shop-domain"] as string | undefined;
+    const topic = req.headers["x-shopify-topic"] as string | undefined;
 
     // Verify webhook
     const rawBody = JSON.stringify(req.body);
@@ -45,7 +45,7 @@ export async function handleOrderCreated(req: Request, res: Response) {
       return res.status(404).send("Connection not found");
     }
 
-    const order = req.body;
+    const order = req.body as any;
 
     // Log webhook event
     await db.insert(shopifyWebhookEvents).values({
@@ -90,11 +90,11 @@ export async function handleOrderCreated(req: Request, res: Response) {
   }
 }
 
-export async function handleAppUninstalled(req: Request, res: Response) {
+export async function handleAppUninstalled(req: FastifyRequest, res: FastifyReply) {
   try {
-    const hmac = req.headers["x-shopify-hmac-sha256"];
-    const shopDomain = req.headers["x-shopify-shop-domain"];
-    const topic = req.headers["x-shopify-topic"];
+    const hmac = req.headers["x-shopify-hmac-sha256"] as string | undefined;
+    const shopDomain = req.headers["x-shopify-shop-domain"] as string | undefined;
+    const topic = req.headers["x-shopify-topic"] as string | undefined;
 
     // Verify webhook
     const rawBody = JSON.stringify(req.body);

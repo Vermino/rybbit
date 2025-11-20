@@ -1,6 +1,6 @@
-import type { Request, Response } from "express";
+import { FastifyRequest, FastifyReply } from "fastify";
 import crypto from "crypto";
-import { db } from "../../db/postgres/index.js";
+import { db } from "../../db/postgres/postgres.js";
 import { shopifyConnections } from "../../db/postgres/schema-shopify.js";
 import { eq } from "drizzle-orm";
 
@@ -25,9 +25,9 @@ interface ShopifyShopInfo {
   };
 }
 
-export async function shopifyCallback(req: Request, res: Response) {
+export async function shopifyCallback(req: FastifyRequest, res: FastifyReply) {
   try {
-    const { code, shop, state, hmac } = req.query;
+    const { code, shop, state, hmac } = req.query as { code?: string; shop?: string; state?: string; hmac?: string };
 
     if (!code || !shop || !state) {
       return res.status(400).send("Missing required OAuth parameters");
@@ -35,7 +35,7 @@ export async function shopifyCallback(req: Request, res: Response) {
 
     // Verify HMAC to ensure request is from Shopify
     if (hmac && typeof hmac === "string") {
-      const params = { ...req.query };
+      const params = { ...req.query } as Record<string, string>;
       delete params.hmac;
       const message = Object.keys(params)
         .sort()

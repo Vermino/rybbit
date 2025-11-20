@@ -1,22 +1,22 @@
-import type { Request, Response } from "express";
-import { getSessionFromReq } from "../../lib/auth.js";
+import { FastifyRequest, FastifyReply } from "fastify";
+import { getSessionFromReq } from "../../lib/auth-utils.js";
 
 const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID;
 const SHOPIFY_REDIRECT_URI = process.env.SHOPIFY_REDIRECT_URI || "http://localhost:3002/api/shopify/callback";
 const SHOPIFY_SCOPES = process.env.SHOPIFY_SCOPES || "read_products,read_orders,read_customers,read_analytics";
 
-export async function connectShopify(req: Request, res: Response) {
+export async function connectShopify(req: FastifyRequest, res: FastifyReply) {
   try {
     const session = await getSessionFromReq(req);
     if (!session) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).send({ error: "Unauthorized" });
     }
 
-    const { siteId } = req.params;
-    const { shopDomain } = req.query;
+    const { siteId } = req.params as { siteId: string };
+    const { shopDomain } = req.query as { shopDomain?: string };
 
     if (!shopDomain || typeof shopDomain !== "string") {
-      return res.status(400).json({ error: "Shop domain is required (e.g., mystore.myshopify.com)" });
+      return res.status(400).send({ error: "Shop domain is required (e.g., mystore.myshopify.com)" });
     }
 
     // Validate shop domain format
@@ -24,14 +24,14 @@ export async function connectShopify(req: Request, res: Response) {
     if (!cleanDomain.endsWith(".myshopify.com") && !cleanDomain.includes(".")) {
       // If they just entered "mystore", append .myshopify.com
       const formattedDomain = `${cleanDomain}.myshopify.com`;
-      return res.json({
+      return res.send({
         error: "Please provide full shop domain",
         suggestion: formattedDomain
       });
     }
 
     if (!SHOPIFY_CLIENT_ID) {
-      return res.status(500).json({ error: "Shopify app not configured. Please set SHOPIFY_CLIENT_ID." });
+      return res.status(500).send({ error: "Shopify app not configured. Please set SHOPIFY_CLIENT_ID." });
     }
 
     // Generate state parameter with siteId and userId for verification
@@ -52,9 +52,9 @@ export async function connectShopify(req: Request, res: Response) {
       `redirect_uri=${encodeURIComponent(SHOPIFY_REDIRECT_URI)}&` +
       `state=${encodeURIComponent(state)}`;
 
-    return res.json({ authUrl });
+    return res.send({ authUrl });
   } catch (error) {
     console.error("Error in connectShopify:", error);
-    return res.status(500).json({ error: "Failed to initiate Shopify connection" });
+    return res.status(500).send({ error: "Failed to initiate Shopify connection" });
   }
 }
