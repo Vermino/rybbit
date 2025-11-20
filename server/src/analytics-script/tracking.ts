@@ -6,6 +6,7 @@ export class Tracker {
   private config: ScriptConfig;
   private customUserId: string | null = null;
   private sessionReplayRecorder?: SessionReplayRecorder;
+  private experimentData: Record<string, string> = {};
 
   constructor(config: ScriptConfig) {
     this.config = config;
@@ -14,6 +15,13 @@ export class Tracker {
     if (config.enableSessionReplay) {
       this.initializeSessionReplay();
     }
+  }
+
+  /**
+   * Set experiment variant assignments to include in tracking data
+   */
+  setExperimentData(data: Record<string, string>): void {
+    this.experimentData = data;
   }
 
   private loadUserId(): void {
@@ -89,6 +97,11 @@ export class Tracker {
 
     if (this.customUserId) {
       payload.user_id = this.customUserId;
+    }
+
+    // Include experiment variant assignments
+    if (Object.keys(this.experimentData).length > 0) {
+      payload.experiments = this.experimentData;
     }
 
     return payload;

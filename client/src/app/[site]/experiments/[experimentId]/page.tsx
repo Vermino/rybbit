@@ -20,6 +20,8 @@ import {
   Settings,
   Target,
   Clock,
+  Link as LinkIcon,
+  Copy,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -73,6 +75,7 @@ export default function ExperimentDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [copiedVariant, setCopiedVariant] = useState<string | null>(null);
 
   useEffect(() => {
     fetchExperiment();
@@ -149,6 +152,27 @@ export default function ExperimentDetailPage() {
       setIsDeleting(false);
       setShowDeleteDialog(false);
     }
+  };
+
+  const copyPreviewLink = (variantId: string) => {
+    if (!experiment) return;
+
+    // Get the target URL or current page
+    const baseUrl = experiment.targetUrl || experiment.cloakedUrl || window.location.origin;
+    const url = new URL(baseUrl);
+
+    // Add force variant parameters
+    url.searchParams.set("rb_variant", variantId);
+    url.searchParams.set("rb_experiment", experiment.id.toString());
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(url.toString()).then(() => {
+      setCopiedVariant(variantId);
+      setTimeout(() => setCopiedVariant(null), 2000);
+    }).catch((err) => {
+      console.error("Failed to copy:", err);
+      alert("Failed to copy link to clipboard");
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -371,11 +395,31 @@ export default function ExperimentDetailPage() {
                         </p>
                       )}
                     </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-neutral-900 dark:text-white">
-                        {variant.trafficWeight}%
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyPreviewLink(variant.id)}
+                        className="flex items-center gap-2"
+                      >
+                        {copiedVariant === variant.id ? (
+                          <>
+                            <Check className="w-4 h-4" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <LinkIcon className="w-4 h-4" />
+                            Preview
+                          </>
+                        )}
+                      </Button>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-neutral-900 dark:text-white">
+                          {variant.trafficWeight}%
+                        </div>
+                        <div className="text-xs text-neutral-500">traffic</div>
                       </div>
-                      <div className="text-xs text-neutral-500">traffic</div>
                     </div>
                   </div>
                 ))}

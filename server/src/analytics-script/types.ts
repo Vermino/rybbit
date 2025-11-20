@@ -27,6 +27,7 @@ export interface BasePayload {
   page_title: string;
   referrer: string;
   user_id?: string;
+  experiments?: Record<string, string>; // e.g., { "exp_1": "variant-a", "exp_2": "control" }
 }
 
 export interface TrackingPayload extends BasePayload {
