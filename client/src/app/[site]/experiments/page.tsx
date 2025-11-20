@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSetPageTitle } from "../../../hooks/useSetPageTitle";
 import { useStore } from "../../../lib/store";
 import { BACKEND_URL } from "../../../lib/const";
@@ -25,6 +26,7 @@ export default function ExperimentsPage() {
   useSetPageTitle("Rybbit · Experiments");
 
   const { site } = useStore();
+  const router = useRouter();
   const [experiments, setExperiments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "draft" | "running" | "paused" | "completed">("all");
@@ -162,7 +164,8 @@ export default function ExperimentsPage() {
             {filteredExperiments.map((experiment: any) => (
               <div
                 key={experiment.id}
-                className="rounded-lg bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 p-4 hover:shadow-md transition-shadow"
+                className="rounded-lg bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 p-4 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => router.push(`/${site}/experiments/${experiment.id}`)}
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -173,8 +176,12 @@ export default function ExperimentsPage() {
                       {experiment.status}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => router.push(`/${site}/experiments/${experiment.id}`)}
+                    >
                       <Edit className="w-4 h-4" />
                     </Button>
                     {experiment.status === "running" ? (

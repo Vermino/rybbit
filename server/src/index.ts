@@ -92,6 +92,7 @@ import { getGSCData } from "./api/gsc/getData.js";
 import { selectGSCProperty } from "./api/gsc/selectProperty.js";
 import { createExperiment } from "./api/experiments/createExperiment.js";
 import { getExperiments } from "./api/experiments/getExperiments.js";
+import { getExperiment } from "./api/experiments/getExperiment.js";
 import { updateExperiment } from "./api/experiments/updateExperiment.js";
 import { updateExperimentStatus } from "./api/experiments/updateExperimentStatus.js";
 import { deleteExperiment } from "./api/experiments/deleteExperiment.js";
@@ -396,6 +397,7 @@ server.get("/api/gsc/data/:site", getGSCData);
 // A/B TESTING & EXPERIMENTS
 server.post("/api/experiments", createExperiment);
 server.get("/api/experiments", getExperiments);
+server.get("/api/experiments/:experimentId", getExperiment);
 server.put("/api/experiments/:experimentId", updateExperiment);
 server.patch("/api/experiments/status", updateExperimentStatus);
 server.delete("/api/experiments/:experimentId", deleteExperiment);
