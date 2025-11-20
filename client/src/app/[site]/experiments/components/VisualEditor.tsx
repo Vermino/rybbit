@@ -513,11 +513,11 @@ export function VisualEditor({
 
   return (
     <div className="fixed inset-0 z-[100] flex">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm -z-10" />
+      {/* Backdrop - non-interactive */}
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm pointer-events-none" />
 
       {/* Left Panel - Editor Controls */}
-      <div className="w-96 bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 overflow-y-auto relative z-10">
+      <div className="w-96 bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 overflow-y-auto relative pointer-events-auto">
         <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 sticky top-0 bg-white dark:bg-neutral-900 z-10">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold">Visual Editor</h3>
@@ -1232,7 +1232,7 @@ export function VisualEditor({
       </div>
 
       {/* Right Panel - Preview */}
-      <div className="flex-1 flex flex-col relative z-10">
+      <div className="flex-1 flex flex-col relative pointer-events-auto">
         <div className="p-4 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
           <p className="text-sm text-neutral-600 dark:text-neutral-400">
             Preview: {targetUrl}
