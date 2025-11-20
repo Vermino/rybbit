@@ -40,6 +40,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ExperimentResults } from "../components/ExperimentResults";
 
 interface Experiment {
   id: number;
@@ -581,27 +582,7 @@ export default function ExperimentDetailPage() {
 
         {/* Results Tab */}
         <TabsContent value="results" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Experiment Results</CardTitle>
-              <CardDescription>
-                {experiment.status === "draft"
-                  ? "Start the experiment to see results"
-                  : experiment.status === "running"
-                    ? "Results will appear as data is collected"
-                    : "View completed experiment results"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center min-h-[200px] text-neutral-500 dark:text-neutral-400">
-                <div className="text-center">
-                  <BarChart className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Analytics and conversion data will appear here</p>
-                  <p className="text-sm mt-1">This feature is coming soon</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ExperimentResults experimentId={experiment.id} />
         </TabsContent>
       </Tabs>
 

@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { useSetPageTitle } from "../../../hooks/useSetPageTitle";
 import { useStore } from "../../../lib/store";
 import { BACKEND_URL } from "../../../lib/const";
-import { FlaskConical, Plus, Play, Pause, Trash2, Edit } from "lucide-react";
+import { FlaskConical, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { CreateExperimentWizard } from "./components/CreateExperimentWizard";
+import { DashboardOverview } from "./components/DashboardOverview";
+import { ExperimentCard } from "./components/ExperimentCard";
 
 // Skeleton component
 const ExperimentCardSkeleton = () => (
@@ -119,20 +120,6 @@ export default function ExperimentsPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "running":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
-      case "draft":
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
-      case "paused":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
-      case "completed":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
-    }
-  };
 
   return (
     <div className="w-full min-h-screen bg-neutral-50 dark:bg-neutral-950">
@@ -150,6 +137,11 @@ export default function ExperimentsPage() {
             Create Experiment
           </Button>
         </div>
+
+        {/* Dashboard Overview */}
+        {experiments.length > 0 && (
+          <DashboardOverview siteId={site} experiments={experiments} />
+        )}
 
         {/* Filter tabs */}
         <div className="flex gap-2 mb-6 border-b border-neutral-200 dark:border-neutral-800">
@@ -192,77 +184,13 @@ export default function ExperimentsPage() {
         ) : (
           <div className="grid gap-4">
             {filteredExperiments.map((experiment: any) => (
-              <div
+              <ExperimentCard
                 key={experiment.id}
-                className="rounded-lg bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 p-4 hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => router.push(`/${site}/experiments/${experiment.id}`)}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-lg font-medium text-neutral-900 dark:text-white">
-                      {experiment.name}
-                    </h3>
-                    <Badge className={getStatusColor(experiment.status)}>
-                      {experiment.status}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => router.push(`/${site}/experiments/${experiment.id}`)}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    {experiment.status === "running" ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleStatusChange(experiment.id, "paused")}
-                        title="Pause experiment"
-                      >
-                        <Pause className="w-4 h-4" />
-                      </Button>
-                    ) : experiment.status === "draft" || experiment.status === "paused" ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleStatusChange(experiment.id, "running")}
-                        title="Start experiment"
-                      >
-                        <Play className="w-4 h-4" />
-                      </Button>
-                    ) : null}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(experiment.id, experiment.name, experiment.status)}
-                      disabled={experiment.status === "running"}
-                      title={experiment.status === "running" ? "Pause the experiment before deleting" : "Delete experiment"}
-                    >
-                      <Trash2 className="w-4 h-4 text-red-600" />
-                    </Button>
-                  </div>
-                </div>
-                {experiment.description && (
-                  <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-3">
-                    {experiment.description}
-                  </p>
-                )}
-                <div className="flex items-center gap-6 text-sm text-neutral-600 dark:text-neutral-400">
-                  <div>
-                    <span className="font-medium">{experiment.variants?.length || 0}</span> variants
-                  </div>
-                  <div>
-                    <span className="font-medium">{experiment.trafficAllocation}%</span> traffic
-                  </div>
-                  {experiment.startedAt && (
-                    <div>
-                      Started {new Date(experiment.startedAt).toLocaleDateString()}
-                    </div>
-                  )}
-                </div>
-              </div>
+                experiment={experiment}
+                site={site}
+                onStatusChange={handleStatusChange}
+                onDelete={handleDelete}
+              />
             ))}
           </div>
         )}
