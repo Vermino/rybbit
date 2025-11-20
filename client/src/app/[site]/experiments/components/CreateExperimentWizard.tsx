@@ -22,9 +22,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Plus, Trash2, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, ArrowRight, Check, Paintbrush } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { TargetingBuilder } from "./TargetingBuilder";
+import { VisualEditor } from "./VisualEditor";
 
 interface Variant {
   id: string;
@@ -68,6 +69,8 @@ export function CreateExperimentWizard({
   const { site } = useStore();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [visualEditorOpen, setVisualEditorOpen] = useState(false);
+  const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
 
   const [experimentData, setExperimentData] = useState<ExperimentData>({
     name: "",
@@ -161,10 +164,64 @@ export function CreateExperimentWizard({
     });
   };
 
-  const handleVariantWeightChange = (id: string, weight: number) => {
-    const updatedVariants = experimentData.variants.map((v) =>
-      v.id === id ? { ...v, trafficWeight: weight } : v
-    );
+  const handleVariantWeightChange = (id: string, newWeight: number) => {
+    const currentVariant = experimentData.variants.find((v) => v.id === id);
+    if (!currentVariant) return;
+
+    const oldWeight = currentVariant.trafficWeight;
+    const difference = oldWeight - newWeight;
+
+    // Get all other variants
+    const otherVariants = experimentData.variants.filter((v) => v.id !== id);
+
+    if (otherVariants.length === 0) {
+      // Only one variant, just update it
+      const updatedVariants = experimentData.variants.map((v) =>
+        v.id === id ? { ...v, trafficWeight: newWeight } : v
+      );
+      setExperimentData({
+        ...experimentData,
+        variants: updatedVariants,
+      });
+      return;
+    }
+
+    // Calculate total weight of other variants
+    const otherVariantsTotal = otherVariants.reduce((sum, v) => sum + v.trafficWeight, 0);
+
+    // Distribute the difference proportionally among other variants
+    let remainingDifference = difference;
+    const updatedVariants = experimentData.variants.map((v) => {
+      if (v.id === id) {
+        return { ...v, trafficWeight: newWeight };
+      }
+
+      // Calculate proportional share of the difference
+      const proportion = otherVariantsTotal > 0 ? v.trafficWeight / otherVariantsTotal : 1 / otherVariants.length;
+      const adjustment = Math.round(difference * proportion);
+      const newVariantWeight = Math.max(0, Math.min(100, v.trafficWeight + adjustment));
+
+      remainingDifference -= (newVariantWeight - v.trafficWeight);
+
+      return { ...v, trafficWeight: newVariantWeight };
+    });
+
+    setExperimentData({
+      ...experimentData,
+      variants: updatedVariants,
+    });
+  };
+
+  const distributeWeightsEvenly = () => {
+    const variantCount = experimentData.variants.length;
+    const equalWeight = Math.floor(100 / variantCount);
+    const remainder = 100 - equalWeight * variantCount;
+
+    const updatedVariants = experimentData.variants.map((v, idx) => ({
+      ...v,
+      trafficWeight: idx === 0 ? equalWeight + remainder : equalWeight,
+    }));
+
     setExperimentData({
       ...experimentData,
       variants: updatedVariants,
@@ -440,10 +497,27 @@ export function CreateExperimentWizard({
                       {/* Custom code field for visual tests */}
                       {experimentData.type === "visual" && (
                         <div>
-                          <Label className="text-xs">
-                            Custom Code (HTML/CSS/JS)
-                            {variant.isControl && " - Leave empty for control"}
-                          </Label>
+                          <div className="flex items-center justify-between mb-2">
+                            <Label className="text-xs">
+                              Custom Code (HTML/CSS/JS)
+                              {variant.isControl && " - Leave empty for control"}
+                            </Label>
+                            {!variant.isControl && experimentData.targetUrl && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => {
+                                  setEditingVariantId(variant.id);
+                                  setVisualEditorOpen(true);
+                                }}
+                              >
+                                <Paintbrush className="w-3 h-3 mr-1" />
+                                Visual Editor
+                              </Button>
+                            )}
+                          </div>
                           <Textarea
                             placeholder={
                               variant.isControl
@@ -461,7 +535,7 @@ export function CreateExperimentWizard({
                             className="font-mono text-xs"
                           />
                           <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                            JavaScript code that will run on the target page
+                            JavaScript code that will run on the target page. Use Visual Editor for a no-code experience.
                           </p>
                         </div>
                       )}
@@ -504,12 +578,28 @@ export function CreateExperimentWizard({
               }`}
             >
               <div className="flex items-center justify-between text-sm">
-                <span>Total Traffic Allocation:</span>
-                <span className="font-medium">{totalWeight.toFixed(0)}%</span>
+                <div className="flex items-center gap-2">
+                  <span>Total Traffic Allocation:</span>
+                  <span className="font-medium">{totalWeight.toFixed(0)}%</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={distributeWeightsEvenly}
+                  className="text-xs h-7"
+                >
+                  Distribute Evenly
+                </Button>
               </div>
               {!isValidWeight && (
                 <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                  Traffic weights must sum to 100%
+                  Traffic weights must sum to 100%. Adjust sliders or click "Distribute Evenly".
+                </p>
+              )}
+              {isValidWeight && (
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                  ✓ Traffic is properly distributed across all variants
                 </p>
               )}
             </div>
@@ -743,6 +833,7 @@ export function CreateExperimentWizard({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -795,5 +886,28 @@ export function CreateExperimentWizard({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Visual Editor Modal */}
+    {visualEditorOpen && experimentData.targetUrl && editingVariantId && (
+      <VisualEditor
+        targetUrl={experimentData.targetUrl}
+        initialCode={
+          experimentData.variants.find((v) => v.id === editingVariantId)?.customCode || ""
+        }
+        onSave={(code) => {
+          const updated = experimentData.variants.map((v) =>
+            v.id === editingVariantId ? { ...v, customCode: code } : v
+          );
+          setExperimentData({ ...experimentData, variants: updated });
+          setVisualEditorOpen(false);
+          setEditingVariantId(null);
+        }}
+        onClose={() => {
+          setVisualEditorOpen(false);
+          setEditingVariantId(null);
+        }}
+      />
+    )}
+  </>
   );
 }
