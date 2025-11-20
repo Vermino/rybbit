@@ -93,6 +93,7 @@ import { selectGSCProperty } from "./api/gsc/selectProperty.js";
 import { createExperiment } from "./api/experiments/createExperiment.js";
 import { getExperiments } from "./api/experiments/getExperiments.js";
 import { getExperiment } from "./api/experiments/getExperiment.js";
+import { getExperimentStats } from "./api/experiments/getExperimentStats.js";
 import { getActiveExperiments } from "./api/experiments/getActiveExperiments.js";
 import { duplicateExperiment } from "./api/experiments/duplicateExperiment.js";
 import { updateExperiment } from "./api/experiments/updateExperiment.js";
@@ -399,8 +400,9 @@ server.get("/api/gsc/data/:site", getGSCData);
 // A/B TESTING & EXPERIMENTS
 server.post("/api/experiments", createExperiment);
 server.get("/api/experiments", getExperiments);
-server.get("/api/experiments/:experimentId", getExperiment);
 server.get("/api/experiments/active/:siteId", getActiveExperiments); // Public endpoint for client-side script
+server.get("/api/experiments/:experimentId", getExperiment);
+server.get("/api/experiments/:experimentId/stats", getExperimentStats);
 server.post("/api/experiments/:experimentId/duplicate", duplicateExperiment);
 server.put("/api/experiments/:experimentId", updateExperiment);
 server.patch("/api/experiments/status", updateExperimentStatus);
