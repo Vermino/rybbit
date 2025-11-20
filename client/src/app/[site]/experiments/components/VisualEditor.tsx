@@ -161,21 +161,12 @@ export function VisualEditor({
       `;
       iframeDoc.head.appendChild(style);
 
-      // Prevent ALL navigation and interactions
-      const preventDefaults = (e: Event) => {
+      // Combined click handler: prevent navigation AND handle selection
+      iframeDoc.addEventListener("click", (e: any) => {
+        // Prevent all navigation
         e.preventDefault();
         e.stopPropagation();
-        e.stopImmediatePropagation();
-      };
 
-      // Capture phase to intercept before any other handlers
-      iframeDoc.addEventListener("click", preventDefaults, true);
-      iframeDoc.addEventListener("submit", preventDefaults, true);
-      iframeDoc.addEventListener("auxclick", preventDefaults, true);
-      iframeDoc.addEventListener("contextmenu", preventDefaults, true);
-
-      // Add selection logic AFTER preventing defaults
-      iframeDoc.addEventListener("click", (e: any) => {
         const target = e.target as HTMLElement;
         if (!target) return;
 
@@ -234,7 +225,18 @@ export function VisualEditor({
 
         setSelectedElement(elementData);
         populateControls(elementData);
-      }, false);
+      }, true); // Use capture phase
+
+      // Prevent form submissions
+      iframeDoc.addEventListener("submit", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }, true);
+
+      // Prevent right-click context menu
+      iframeDoc.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+      }, true);
 
       // Hover effects
       iframeDoc.addEventListener("mouseover", (e: any) => {
