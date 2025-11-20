@@ -86,6 +86,7 @@ export function VisualEditor({
   const [selectedElement, setSelectedElement] = useState<ElementData | null>(null);
   const [changes, setChanges] = useState<Record<string, any>>({});
   const [changeCount, setChangeCount] = useState(0);
+  const [iframeReady, setIframeReady] = useState(false);
 
   // Element state
   const [visibility, setVisibility] = useState(true);
@@ -144,7 +145,10 @@ export function VisualEditor({
 
     const handleLoad = () => {
       const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (!iframeDoc) return;
+      const iframeWin = iframe.contentWindow;
+      if (!iframeDoc || !iframeWin) return;
+
+      console.log("Visual Editor: Iframe loaded and ready");
 
       // Inject styles for hover and selection
       const style = iframeDoc.createElement("style");
@@ -170,6 +174,8 @@ export function VisualEditor({
         const target = e.target as HTMLElement;
         if (!target) return;
 
+        console.log("Visual Editor: Element clicked", target.tagName, target.className);
+
         // Remove previous selection
         iframeDoc.querySelectorAll(".rybbit-selected").forEach((el) => {
           el.classList.remove("rybbit-selected");
@@ -178,8 +184,8 @@ export function VisualEditor({
         // Add selection to clicked element
         target.classList.add("rybbit-selected");
 
-        // Extract element data
-        const computedStyles = window.getComputedStyle(target);
+        // Extract element data - USE IFRAME WINDOW FOR COMPUTED STYLES
+        const computedStyles = iframeWin.getComputedStyle(target);
         const selector = generateSelector(target);
 
         const elementData: ElementData = {
@@ -249,9 +255,18 @@ export function VisualEditor({
         const target = e.target as HTMLElement;
         target.classList.remove("rybbit-hover");
       });
+
+      // Mark iframe as ready
+      console.log("Visual Editor: Marking iframe as ready");
+      setIframeReady(true);
     };
 
     iframe.addEventListener("load", handleLoad);
+
+    // If iframe already loaded (cached), trigger handleLoad manually
+    if (iframe.contentDocument?.readyState === "complete") {
+      handleLoad();
+    }
 
     return () => {
       iframe.removeEventListener("load", handleLoad);
@@ -348,24 +363,26 @@ export function VisualEditor({
 
   // Apply style change to iframe element
   const applyStyle = (property: string, value: any) => {
-    if (!selectedElement || !iframeRef.current) return;
+    if (!selectedElement || !iframeRef.current) {
+      console.log("Visual Editor: applyStyle called but no element selected or iframe missing");
+      return;
+    }
 
     const iframeDoc = iframeRef.current.contentDocument;
-    if (!iframeDoc) return;
+    if (!iframeDoc) {
+      console.log("Visual Editor: No iframe document");
+      return;
+    }
 
     const element = iframeDoc.querySelector(selectedElement.selector) as HTMLElement;
-    if (!element) return;
-
-    // Track the change
-    const newChanges = { ...changes };
-    if (!newChanges[selectedElement.selector]) {
-      newChanges[selectedElement.selector] = {};
+    if (!element) {
+      console.log("Visual Editor: Element not found with selector:", selectedElement.selector);
+      return;
     }
-    newChanges[selectedElement.selector][property] = value;
-    setChanges(newChanges);
-    setChangeCount(Object.keys(newChanges).reduce((sum, sel) => sum + Object.keys(newChanges[sel]).length, 0));
 
-    // Apply the change
+    console.log(`Visual Editor: Applying ${property} = ${value} to ${selectedElement.selector}`);
+
+    // Apply the change to DOM first
     if (property === "textContent") {
       element.textContent = value;
     } else if (property === "innerHTML") {
@@ -375,6 +392,25 @@ export function VisualEditor({
     } else {
       (element.style as any)[property] = value;
     }
+
+    // Track the change for code generation
+    setChanges((prevChanges) => {
+      const newChanges = { ...prevChanges };
+      if (!newChanges[selectedElement.selector]) {
+        newChanges[selectedElement.selector] = {};
+      }
+      newChanges[selectedElement.selector][property] = value;
+
+      // Calculate total changes
+      const totalChanges = Object.keys(newChanges).reduce(
+        (sum, sel) => sum + Object.keys(newChanges[sel]).length,
+        0
+      );
+      console.log(`Visual Editor: Total changes = ${totalChanges}`);
+      setChangeCount(totalChanges);
+
+      return newChanges;
+    });
   };
 
   // Generate JavaScript code from changes
@@ -432,7 +468,11 @@ export function VisualEditor({
             </div>
           </div>
           <p className="text-xs text-neutral-500">
-            Click elements to edit • {changeCount} change{changeCount !== 1 ? "s" : ""}
+            {iframeReady ? (
+              <>Click elements to edit • {changeCount} change{changeCount !== 1 ? "s" : ""}</>
+            ) : (
+              <>Loading editor...</>
+            )}
           </p>
         </div>
 
@@ -1135,7 +1175,15 @@ export function VisualEditor({
             Preview: {targetUrl}
           </p>
         </div>
-        <div className="flex-1 bg-neutral-100 dark:bg-neutral-950">
+        <div className="flex-1 bg-neutral-100 dark:bg-neutral-950 relative">
+          {!iframeReady && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/90 dark:bg-neutral-900/90 z-10">
+              <div className="text-center">
+                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">Loading preview...</p>
+              </div>
+            </div>
+          )}
           <iframe
             ref={iframeRef}
             src={targetUrl}
