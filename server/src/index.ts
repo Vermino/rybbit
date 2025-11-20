@@ -212,6 +212,9 @@ const PUBLIC_ROUTES: string[] = [
   "/api/auth/callback/google",
   "/api/auth/callback/github",
   "/api/gsc/callback",
+  "/api/shopify/callback",
+  "/api/shopify/webhooks/orders/create",
+  "/api/shopify/webhooks/app/uninstalled",
   "/api/stripe/webhook",
   "/api/as/webhook",
   "/api/session-replay/record",
@@ -383,6 +386,20 @@ server.get("/api/gsc/status/:site", getGSCStatus);
 server.delete("/api/gsc/disconnect/:site", disconnectGSC);
 server.post("/api/gsc/select-property/:site", selectGSCProperty);
 server.get("/api/gsc/data/:site", getGSCData);
+
+// SHOPIFY INTEGRATION
+const { connectShopify } = await import("./api/shopify/connect.js");
+const { shopifyCallback } = await import("./api/shopify/callback.js");
+const { getShopifyStatus } = await import("./api/shopify/status.js");
+const { disconnectShopify } = await import("./api/shopify/disconnect.js");
+const { handleOrderCreated, handleAppUninstalled } = await import("./api/shopify/webhooks.js");
+
+server.get("/api/shopify/connect/:siteId", connectShopify);
+server.get("/api/shopify/callback", shopifyCallback);
+server.get("/api/shopify/status/:siteId", getShopifyStatus);
+server.delete("/api/shopify/disconnect/:siteId", disconnectShopify);
+server.post("/api/shopify/webhooks/orders/create", handleOrderCreated);
+server.post("/api/shopify/webhooks/app/uninstalled", handleAppUninstalled);
 
 // UPTIME MONITORING
 // Only register uptime routes when IS_CLOUD is true (Redis is available)

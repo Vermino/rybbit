@@ -26,6 +26,7 @@ import { normalizeDomain } from "@/lib/utils";
 import { IPExclusionManager } from "./IPExclusionManager";
 import { CountryExclusionManager } from "./CountryExclusionManager";
 import { GSCManager } from "./GSCManager";
+import { ShopifyManager } from "./ShopifyManager";
 import { useStripeSubscription } from "../../lib/subscription/useStripeSubscription";
 import { Badge } from "../ui/badge";
 import { IS_CLOUD } from "../../lib/const";
@@ -308,6 +309,9 @@ export function SiteConfiguration({ siteMetadata, disabled = false, onClose }: S
 
       {/* Google Search Console Section */}
       {IS_CLOUD && <GSCManager disabled={disabled} />}
+
+      {/* Shopify Integration Section */}
+      <ShopifyManager />
 
       {/* Domain Settings Section */}
       <div className="space-y-3">

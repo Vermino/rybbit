@@ -2,6 +2,8 @@ import dotenv from "dotenv";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema.js";
+import * as shopifySchema from "./schema-shopify.js";
+import * as appsumoSchema from "./schema-appsumo.js";
 
 dotenv.config();
 
@@ -16,8 +18,15 @@ const client = postgres({
   max: 20,
 });
 
+// Combine all schemas
+const combinedSchema = {
+  ...schema,
+  ...shopifySchema,
+  ...appsumoSchema,
+};
+
 // Create drizzle ORM instance
-export const db = drizzle(client, { schema });
+export const db = drizzle(client, { schema: combinedSchema });
 
 // For compatibility with raw SQL if needed
 export const sql = client;
