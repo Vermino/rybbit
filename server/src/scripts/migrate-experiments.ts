@@ -71,12 +71,19 @@ async function migrateExperiments() {
     `;
     console.log("✓ Added target_url column");
 
+    // Add traffic_allocation column
+    await sql`
+      ALTER TABLE experiments
+      ADD COLUMN IF NOT EXISTS traffic_allocation INTEGER DEFAULT 100 NOT NULL;
+    `;
+    console.log("✓ Added traffic_allocation column");
+
     // Verify columns were added
     const columns = await sql`
       SELECT column_name, data_type
       FROM information_schema.columns
       WHERE table_name = 'experiments'
-      AND column_name IN ('cloaked_url', 'target_url')
+      AND column_name IN ('cloaked_url', 'target_url', 'traffic_allocation')
       ORDER BY column_name;
     `;
 
