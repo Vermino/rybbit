@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { IntegrationInstallDialog } from "./components/IntegrationInstallDialog";
+import { BACKEND_URL } from "@/lib/const";
 
 // Skeleton component
 const IntegrationCardSkeleton = () => (
@@ -74,7 +75,9 @@ export default function IntegrationsPage() {
       setIsLoading(true);
       try {
         // Fetch available integrations
-        const response = await fetch(`/api/integrations${categoryFilter !== "all" ? `?category=${categoryFilter}` : ""}`);
+        const response = await fetch(`${BACKEND_URL}/integrations${categoryFilter !== "all" ? `?category=${categoryFilter}` : ""}`, {
+          credentials: "include",
+        });
         if (response.ok) {
           const data = await response.json();
           // If API returns data, use it; otherwise keep sample data
@@ -84,7 +87,9 @@ export default function IntegrationsPage() {
         }
 
         // Fetch installed integrations for this site
-        const installedResponse = await fetch(`/api/integrations/site?siteId=${site}`);
+        const installedResponse = await fetch(`${BACKEND_URL}/integrations/site?siteId=${site}`, {
+          credentials: "include",
+        });
         if (installedResponse.ok) {
           const installedData = await installedResponse.json();
           const ids: number[] = (installedData.integrations?.map((i: any) => Number(i.integrationId)) || []) as number[];
@@ -123,7 +128,9 @@ export default function IntegrationsPage() {
   const handleInstallSuccess = () => {
     // Refresh integrations list
     const fetchInstalled = async () => {
-      const installedResponse = await fetch(`/api/integrations/site?siteId=${site}`);
+      const installedResponse = await fetch(`${BACKEND_URL}/integrations/site?siteId=${site}`, {
+        credentials: "include",
+      });
       if (installedResponse.ok) {
         const installedData = await installedResponse.json();
         const ids: number[] = (installedData.integrations?.map((i: any) => Number(i.integrationId)) || []) as number[];
