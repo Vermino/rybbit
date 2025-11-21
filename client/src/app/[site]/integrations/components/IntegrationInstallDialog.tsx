@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Check, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/store";
+import { BACKEND_URL } from "@/lib/const";
 
 interface Integration {
   id: number;
@@ -54,16 +55,17 @@ export function IntegrationInstallDialog({
     try {
       if (integration.authType === "oauth2") {
         // For OAuth2, redirect to OAuth flow
-        window.location.href = `/api/integrations/oauth/authorize?integrationId=${integration.id}&siteId=${site}`;
+        window.location.href = `${BACKEND_URL}/integrations/oauth/authorize?integrationId=${integration.id}&siteId=${site}`;
         return;
       }
 
       // For API key or webhook integrations
-      const response = await fetch("/api/integrations/install", {
+      const response = await fetch(`${BACKEND_URL}/integrations/install`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           siteId: Number(site),
           integrationId: integration.id,

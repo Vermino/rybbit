@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BACKEND_URL } from "../../lib/const";
 
 interface ShopifyConnection {
   shopDomain: string;
@@ -19,7 +20,9 @@ export function useShopifyConnection(siteId: number | string) {
   return useQuery<ShopifyStatus>({
     queryKey: ["shopify-connection", siteId],
     queryFn: async () => {
-      const response = await fetch(`/api/shopify/status/${siteId}`);
+      const response = await fetch(`${BACKEND_URL}/shopify/status/${siteId}`, {
+        credentials: "include",
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch Shopify connection status");
       }
@@ -32,7 +35,12 @@ export function useShopifyConnection(siteId: number | string) {
 export function useConnectShopify() {
   return useMutation({
     mutationFn: async ({ siteId, shopDomain }: { siteId: number | string; shopDomain: string }) => {
-      const response = await fetch(`/api/shopify/connect/${siteId}?shopDomain=${encodeURIComponent(shopDomain)}`);
+      const response = await fetch(
+        `${BACKEND_URL}/shopify/connect/${siteId}?shopDomain=${encodeURIComponent(shopDomain)}`,
+        {
+          credentials: "include",
+        }
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -60,8 +68,9 @@ export function useDisconnectShopify() {
 
   return useMutation({
     mutationFn: async (siteId: number | string) => {
-      const response = await fetch(`/api/shopify/disconnect/${siteId}`, {
+      const response = await fetch(`${BACKEND_URL}/shopify/disconnect/${siteId}`, {
         method: "DELETE",
+        credentials: "include",
       });
 
       if (!response.ok) {
