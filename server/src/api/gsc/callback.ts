@@ -24,7 +24,7 @@ export async function gscCallback(req: FastifyRequest<GSCCallbackRequest>, res: 
     const { code, state, error } = req.query;
 
     if (error) {
-      logger.info("OAuth cancelled or failed:", error);
+      logger.info({ error }, "OAuth cancelled or failed");
       const siteId = state;
       return res.redirect(`${process.env.BASE_URL}/${siteId}/main`);
     }
@@ -68,7 +68,8 @@ export async function gscCallback(req: FastifyRequest<GSCCallbackRequest>, res: 
     });
 
     if (!tokenResponse.ok) {
-      logger.error(await tokenResponse.text(), "Token exchange failed");
+      const errorText = await tokenResponse.text();
+      logger.error({ error: errorText }, "Token exchange failed");
       return res.redirect(`${process.env.BASE_URL}/error?message=Token exchange failed`);
     }
 
